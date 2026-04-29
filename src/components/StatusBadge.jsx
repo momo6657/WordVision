@@ -1,4 +1,7 @@
 export default function StatusBadge({ word }) {
+  if (word.dueAt && new Date(word.dueAt).getTime() <= Date.now()) {
+    return <span className="chip bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200">今日复习</span>;
+  }
   if (word.learned && word.wrongCount > 0) {
     return <span className="chip bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">已掌握，曾答错</span>;
   }

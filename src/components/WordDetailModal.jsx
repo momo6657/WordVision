@@ -40,6 +40,23 @@ export default function WordDetailModal({ word, onClose, onToggleFavorite, onSpe
             <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400">图片提示词</h3>
             <p className="mt-1 rounded-md bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">{word.imagePrompt}</p>
           </section>
+          {word.imageUrl ? (
+            <section>
+              <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400">AI 图片</h3>
+              <img className="mt-2 aspect-[4/3] w-full rounded-lg object-cover" src={word.imageUrl} alt={word.word} />
+              <p className="mt-2 text-xs text-slate-500">
+                {word.imageProvider || "provider"} / {word.imageModel || "model"}
+              </p>
+            </section>
+          ) : null}
+          {word.dueAt ? (
+            <section>
+              <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400">复习计划</h3>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                下次复习：{new Date(word.dueAt).toLocaleString("zh-CN")} · 间隔 {word.intervalDays || 0} 天 · 复习 {word.reviewCount || 0} 次
+              </p>
+            </section>
+          ) : null}
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">

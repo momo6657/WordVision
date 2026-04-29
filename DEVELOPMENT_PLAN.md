@@ -19,6 +19,8 @@
 - `0.1.0`：MVP，可完成核心本地学习流程。
 - `0.2.0`：补充错题本、统计、收藏、详情弹窗和深色模式体验。
 - `0.3.0`：增强 AI 辅助内容、发音、词库管理和复习策略。
+- `0.4.0`：接入可替换 AI 图片 provider、Vercel Serverless API、Vercel Blob 缓存和完整考试词库。
+- `0.5.0`：升级 IndexedDB 进度存储、间隔复习和大词库体验。
 - `1.0.0`：功能稳定、体验完整、文档和验收材料齐备，可作为正式演示版本。
 
 ### 提交规范
@@ -95,7 +97,10 @@ fix: persist theme preference in localStorage
 
 范围：
 
-- AI 生成视觉联想描述。
+- AI 生成视觉联想图片。
+- 可替换图片 provider：默认 OpenAI，支持 mock 和 custom，后续可接入更经济模型。
+- Vercel Serverless API：前端不暴露 API Key。
+- Vercel Blob 缓存：同一单词同一配置命中缓存时不再调用模型。
 - AI 辅助例句和释义。
 - AI 生成或推荐记忆图片。
 - AI 生成四选一干扰项。
@@ -103,6 +108,20 @@ fix: persist theme preference in localStorage
 - 明确用户数据和 API Key 的安全边界。
 
 建议版本：`0.4.0`
+
+### 迭代 4：完整词库与复习算法
+
+目标：从演示词库升级到可实际使用的考试词库，并加入可持续复习机制。
+
+范围：
+
+- 使用 ECDICT 公开数据按 `gk/cet4/cet6` 标签导入三套词库。
+- 输出词库来源报告，明确 MIT License 和导入规则。
+- 使用 IndexedDB 保存单词级学习进度，不把完整词库整体存入 localStorage。
+- 增加今日应复习、新词学习、错题强化、收藏重点和随机练习。
+- 用简化间隔复习算法维护 `dueAt/ease/intervalDays/reviewCount`。
+
+建议版本：`0.5.0`
 
 ### 正式版：演示与交付完善
 
@@ -130,7 +149,8 @@ fix: persist theme preference in localStorage
 - 答错的词汇会进入错题本，后续可以再次练习。
 - 用户可以收藏或取消收藏词汇。
 - 统计页能展示累计学习数据和基础正确率。
-- 刷新页面后，localStorage 中的学习记录、设置、收藏、错题和主题偏好仍然保留。
+- 刷新页面后，IndexedDB/localStorage 中的学习记录、复习计划、收藏、错题、图片状态和主题偏好仍然保留。
+- 学习页可以通过服务端接口生成 AI 图片，失败时降级但不中断答题。
 - 发音功能在支持 Web Speech API 的浏览器中可用；不支持时应给出可接受的降级体验。
 
 ### 界面与体验验收
@@ -146,7 +166,10 @@ fix: persist theme preference in localStorage
 - `npm install` 可以完成依赖安装。
 - `npm run dev` 可以启动本地开发服务。
 - `npm run build` 可以完成生产构建。
+- `npm test` 可以通过 provider、选项生成、学习模式和复习算法测试。
+- `npm run import:ecdict` 可以重新生成三套公开考试词库和来源报告。
 - localStorage 读写逻辑有统一封装，避免页面直接散落存储 key。
+- IndexedDB 保存单词级进度，刷新后保留错题、收藏、图片状态和复习计划。
 - 词库数据结构清晰，至少包含单词、释义、词性、例句、音标、难度或标签等字段。
 - 关键学习逻辑与 UI 展示逻辑适度分离，便于后续测试。
 

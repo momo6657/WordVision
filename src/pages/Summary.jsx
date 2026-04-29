@@ -32,10 +32,10 @@ export default function Summary({ book, summary, onContinue, onWrong, onOverview
 
         <div className="mt-6 flex flex-wrap gap-3">
           <button className="btn-primary" onClick={onContinue}>
-            继续学习未学会单词
+            继续学习新词
           </button>
           <button className="btn-secondary" onClick={onWrong}>
-            复习答错单词
+            错题强化
           </button>
           <button className="btn-secondary" onClick={onOverview}>
             返回词汇总览

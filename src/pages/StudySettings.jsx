@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { getBookStats, selectWordsForSession } from "../utils/quiz.js";
 
 const modes = [
-  { id: "unlearned", label: "学习未学会单词" },
-  { id: "wrong", label: "复习答错单词" },
+  { id: "due", label: "今日应复习" },
+  { id: "unlearned", label: "新词学习" },
+  { id: "wrong", label: "错题强化" },
+  { id: "favorite", label: "收藏重点" },
   { id: "all", label: "随机练习全部单词" },
   { id: "learned", label: "重新学习已学会单词" },
 ];
@@ -24,6 +26,21 @@ export default function StudySettings({ book, initialMode = "unlearned", onStart
         <p className="mt-2 text-slate-600 dark:text-slate-300">
           当前词库：{book.name}，已学会 {stats.learned} / {stats.total}
         </p>
+      </div>
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-4">
+        <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-800 dark:bg-blue-950/40 dark:text-blue-100">
+          今日应复习 <strong>{stats.due}</strong>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+          未学会 <strong>{stats.unlearned}</strong>
+        </div>
+        <div className="rounded-lg bg-orange-50 p-4 text-sm text-orange-800 dark:bg-orange-950/40 dark:text-orange-100">
+          错题 <strong>{stats.wrong}</strong>
+        </div>
+        <div className="rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-100">
+          收藏 <strong>{stats.favorite}</strong>
+        </div>
       </div>
 
       <div className="panel p-5">

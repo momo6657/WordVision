@@ -1,23 +1,74 @@
 import { useEffect, useState } from "react";
-import { Volume2 } from "lucide-react";
+import { RefreshCcw, Volume2 } from "lucide-react";
 import OptionButton from "../components/OptionButton.jsx";
 import ProgressBar from "../components/ProgressBar.jsx";
 import { createOptions } from "../utils/quiz.js";
+import { generateWordImage } from "../utils/imageApi.js";
 
-export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak, onToggleFavorite }) {
+export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak, onToggleFavorite, onImageUpdate }) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null);
   const [result, setResult] = useState(null);
   const currentWord = sessionWords[index];
   const [options, setOptions] = useState([]);
+  const [imageState, setImageState] = useState({ status: "idle", imageUrl: "", message: "" });
 
   useEffect(() => {
     if (currentWord) {
       setOptions(createOptions(book, currentWord));
       setSelected(null);
       setResult(null);
+      setImageState({
+        status: currentWord.imageUrl ? "ready" : currentWord.imageStatus || "idle",
+        imageUrl: currentWord.imageUrl || "",
+        message: currentWord.imageError || "",
+        provider: currentWord.imageProvider || "",
+        model: currentWord.imageModel || "",
+      });
     }
   }, [book.id, currentWord?.id]);
+
+  useEffect(() => {
+    if (!currentWord || currentWord.imageUrl || currentWord.imageStatus === "loading") return;
+    loadImage(false);
+  }, [book.id, currentWord?.id]);
+
+  const loadImage = async (force) => {
+    if (!currentWord) return;
+    setImageState((current) => ({ ...current, status: "loading", message: force ? "正在重新生成 AI 图片..." : "正在生成 AI 图片..." }));
+    onImageUpdate?.(currentWord.id, { imageStatus: "loading", imageError: "" });
+
+    try {
+      const payload = await generateWordImage({
+        bookId: book.id,
+        wordId: currentWord.id,
+        force,
+        word: currentWord.word,
+        meaning: currentWord.simpleMeaning || currentWord.meaning,
+        prompt: currentWord.imagePrompt,
+      });
+      const nextState = {
+        imageUrl: payload.imageUrl,
+        imageStatus: payload.status === "mock" ? "mock" : "ready",
+        imageProvider: payload.provider,
+        imageModel: payload.model,
+        imageGeneratedAt: new Date().toISOString(),
+        imageError: "",
+      };
+      setImageState({
+        status: nextState.imageStatus,
+        imageUrl: nextState.imageUrl,
+        message: payload.message,
+        provider: payload.provider,
+        model: payload.model,
+      });
+      onImageUpdate?.(currentWord.id, nextState);
+    } catch (error) {
+      const message = error.message || "AI 图片生成失败";
+      setImageState({ status: "error", imageUrl: "", message });
+      onImageUpdate?.(currentWord.id, { imageStatus: "error", imageError: message });
+    }
+  };
 
   if (!currentWord) {
     return (
@@ -71,17 +122,29 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
               </button>
             </div>
 
-            <div className="mt-6 grid aspect-[4/3] place-items-center rounded-lg border border-dashed border-blue-300 bg-gradient-to-br from-blue-50 to-emerald-50 p-5 text-center dark:border-blue-800 dark:from-blue-950/40 dark:to-emerald-950/30">
-              {currentWord.imageUrl ? (
-                <img className="h-full w-full rounded-md object-cover" src={currentWord.imageUrl} alt={currentWord.word} />
+            <div className="mt-6 grid aspect-[4/3] place-items-center overflow-hidden rounded-lg border border-dashed border-blue-300 bg-gradient-to-br from-blue-50 to-emerald-50 p-5 text-center dark:border-blue-800 dark:from-blue-950/40 dark:to-emerald-950/30">
+              {imageState.imageUrl ? (
+                <img className="h-full w-full rounded-md object-cover" src={imageState.imageUrl} alt={currentWord.word} />
               ) : (
                 <div>
-                  <p className="text-lg font-bold text-blue-700 dark:text-blue-200">AI 图片生成中</p>
+                  <p className="text-lg font-bold text-blue-700 dark:text-blue-200">
+                    {imageState.status === "loading" ? "AI 图片生成中" : imageState.status === "error" ? "AI 图片生成失败" : "等待生成 AI 图片"}
+                  </p>
                   <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{currentWord.imagePrompt}</p>
+                  {imageState.message ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{imageState.message}</p> : null}
                 </div>
               )}
             </div>
-            <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">观察图片，选择正确的中文释义。</p>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-300">
+              <span>
+                观察图片，选择正确的中文释义。
+                {imageState.provider ? ` · ${imageState.provider}/${imageState.model}` : ""}
+              </span>
+              <button className="btn-secondary px-3 py-1.5" disabled={imageState.status === "loading"} onClick={() => loadImage(true)}>
+                <RefreshCcw size={15} />
+                重新生成
+              </button>
+            </div>
           </section>
 
           <section>

@@ -13,11 +13,13 @@ export default function Statistics({ books, records }) {
         <p className="mt-2 text-slate-600 dark:text-slate-300">查看所有词库的整体进度和最近学习记录。</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-7">
+      <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-9">
         <StatCard label="总词数" value={stats.totalWords} tone="blue" />
         <StatCard label="已学会" value={stats.learned} tone="green" />
         <StatCard label="未学会" value={stats.unlearned} tone="slate" />
         <StatCard label="错题数" value={stats.wrongWords} tone="orange" />
+        <StatCard label="今日复习" value={stats.dueWords} tone="blue" />
+        <StatCard label="收藏" value={stats.favoriteWords} tone="orange" />
         <StatCard label="总答题" value={stats.totalAnswered} tone="blue" />
         <StatCard label="错误次数" value={stats.totalWrong} tone="red" />
         <StatCard label="正确率" value={`${stats.accuracy}%`} tone="green" />

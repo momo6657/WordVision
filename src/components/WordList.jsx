@@ -34,7 +34,7 @@ export default function WordList({ words, onDetail, onToggleFavorite, onSpeak })
             <StatusBadge word={word} />
             <div className="text-sm">{word.wrongCount}</div>
             <div className="flex items-center justify-between gap-2 text-sm text-slate-500 dark:text-slate-400">
-              <span>{formatDateTime(word.lastStudiedAt)}</span>
+              <span title={word.dueAt ? `下次复习：${formatDateTime(word.dueAt)}` : ""}>{formatDateTime(word.lastStudiedAt)}</span>
               <div className="flex gap-1">
                 <button className="grid h-8 w-8 place-items-center rounded-md hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => onSpeak(word.word)} title="朗读">
                   <Volume2 size={16} />

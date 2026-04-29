@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar.jsx";
 import WordDetailModal from "./components/WordDetailModal.jsx";
-import { wordBooks } from "./data/words.js";
 import Home from "./pages/Home.jsx";
 import BookSelect from "./pages/BookSelect.jsx";
 import WordOverview from "./pages/WordOverview.jsx";
@@ -10,35 +9,79 @@ import Study from "./pages/Study.jsx";
 import Summary from "./pages/Summary.jsx";
 import Mistakes from "./pages/Mistakes.jsx";
 import Statistics from "./pages/Statistics.jsx";
-import { clearMistakeProgress, loadState, resetBookProgress, saveState } from "./utils/storage.js";
-import { selectWordsForSession } from "./utils/quiz.js";
+import {
+  clearMistakeProgress,
+  createInitialRecords,
+  loadState,
+  mergeBooksWithProgress,
+  resetBookProgress,
+  saveState,
+  booksToProgressItems,
+} from "./utils/storage.js";
+import { loadProgress, saveProgress } from "./utils/db.js";
+import { selectWordsForSession, updateReviewSchedule } from "./utils/quiz.js";
 
 const modeLabels = {
+  due: "今日应复习",
   unlearned: "学习未学会单词",
   wrong: "复习答错单词",
+  favorite: "收藏重点",
   all: "随机练习全部单词",
   learned: "重新学习已学会单词",
 };
 
 export default function App() {
-  const initialState = useMemo(() => loadState(wordBooks), []);
-  const [books, setBooks] = useState(initialState.books);
-  const [records, setRecords] = useState(initialState.records);
-  const [theme, setTheme] = useState(initialState.theme);
+  const [books, setBooks] = useState([]);
+  const [records, setRecords] = useState(createInitialRecords());
+  const [theme, setTheme] = useState("light");
   const [view, setView] = useState("home");
-  const [selectedBookId, setSelectedBookId] = useState(initialState.records.currentBookId || "cet4");
+  const [selectedBookId, setSelectedBookId] = useState("cet4");
   const [initialMode, setInitialMode] = useState("unlearned");
   const [sessionWords, setSessionWords] = useState([]);
   const [sessionMeta, setSessionMeta] = useState(null);
   const [summary, setSummary] = useState(null);
   const [detailWord, setDetailWord] = useState(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
 
   const selectedBook = books.find((book) => book.id === selectedBookId) || books[0];
 
   useEffect(() => {
+    let active = true;
+    import("./data/words.js")
+      .then(async ({ wordBooks }) => {
+        if (!active) return;
+        const initialState = loadState(wordBooks);
+        setBooks(initialState.books);
+        setRecords(initialState.records);
+        setTheme(initialState.theme);
+        setSelectedBookId(initialState.records.currentBookId || "cet4");
+        const progress = await loadProgress();
+        if (!active) return;
+        if (Object.keys(progress).length) {
+          setBooks(mergeBooksWithProgress(wordBooks, progress));
+        }
+        setHydrated(true);
+        setDataReady(true);
+      })
+      .catch((error) => {
+        console.warn("Failed to load WordVision data:", error);
+        setHydrated(true);
+        setDataReady(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    saveState({ books, records, theme });
-  }, [books, records, theme]);
+    if (!dataReady) return;
+    saveState({ records, theme });
+    if (hydrated) {
+      saveProgress(booksToProgressItems(books)).catch((error) => console.warn("Failed to save IndexedDB progress:", error));
+    }
+  }, [books, dataReady, hydrated, records, theme]);
 
   const navigate = (nextView) => {
     setView(nextView);
@@ -101,11 +144,13 @@ export default function App() {
 
     updateWord(word.id, (currentWord) => {
       becameLearned = correct && !currentWord.learned;
+      const reviewSchedule = updateReviewSchedule(currentWord, correct, now);
       return {
         ...currentWord,
         learned: correct ? true : false,
         wrongCount: correct ? currentWord.wrongCount : currentWord.wrongCount + 1,
         lastStudiedAt: now,
+        ...reviewSchedule,
       };
     });
 
@@ -156,7 +201,16 @@ export default function App() {
   };
 
   const markLearned = (wordId) => {
-    updateWord(wordId, (word) => ({ ...word, learned: true, lastStudiedAt: new Date().toISOString() }));
+    updateWord(wordId, (word) => ({
+      ...word,
+      learned: true,
+      lastStudiedAt: new Date().toISOString(),
+      ...updateReviewSchedule(word, true),
+    }));
+  };
+
+  const updateWordImage = (wordId, imageState) => {
+    updateWord(wordId, (word) => ({ ...word, ...imageState }));
   };
 
   const openMistakeReview = () => {
@@ -171,6 +225,17 @@ export default function App() {
       : detailWord;
 
   const renderView = () => {
+    if (!dataReady || !books.length) {
+      return (
+        <main className="mx-auto max-w-3xl px-4 py-16">
+          <div className="panel p-8 text-center">
+            <h1 className="text-2xl font-black">正在加载完整词库</h1>
+            <p className="mt-2 text-slate-600 dark:text-slate-300">首次加载会读取高考、四级和六级完整词库。</p>
+          </div>
+        </main>
+      );
+    }
+
     if (view === "books") {
       return <BookSelect books={books} onOverview={openOverview} onStudy={openSettings} />;
     }
@@ -201,6 +266,7 @@ export default function App() {
           onFinish={finishSession}
           onSpeak={speak}
           onToggleFavorite={toggleFavorite}
+          onImageUpdate={updateWordImage}
         />
       );
     }

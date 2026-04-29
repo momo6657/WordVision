@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import ProgressBar from "../components/ProgressBar.jsx";
 import StatCard from "../components/StatCard.jsx";
@@ -10,11 +10,14 @@ const filters = [
   { id: "unlearned", label: "未学会" },
   { id: "learned", label: "已学会" },
   { id: "wrong", label: "答错过" },
+  { id: "due", label: "今日复习" },
+  { id: "favorite", label: "收藏" },
 ];
 
 export default function WordOverview({ book, onStartMode, onReset, onDetail, onToggleFavorite, onSpeak }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
+  const [displayCount, setDisplayCount] = useState(120);
   const stats = getBookStats(book);
 
   const visibleWords = useMemo(() => {
@@ -24,10 +27,18 @@ export default function WordOverview({ book, onStartMode, onReset, onDetail, onT
         filter === "all" ||
         (filter === "unlearned" && !word.learned) ||
         (filter === "learned" && word.learned) ||
-        (filter === "wrong" && word.wrongCount > 0);
+        (filter === "wrong" && word.wrongCount > 0) ||
+        (filter === "due" && stats.due && word.dueAt && new Date(word.dueAt).getTime() <= Date.now()) ||
+        (filter === "favorite" && word.favorite);
       return matchesQuery && matchesFilter;
     });
-  }, [book.words, filter, query]);
+  }, [book.words, filter, query, stats.due]);
+
+  useEffect(() => {
+    setDisplayCount(120);
+  }, [book.id, filter, query]);
+
+  const pagedWords = visibleWords.slice(0, displayCount);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -73,10 +84,16 @@ export default function WordOverview({ book, onStartMode, onReset, onDetail, onT
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
           <button className="btn-primary" onClick={() => onStartMode(book.id, "unlearned")}>
-            开始学习未学会单词
+            新词学习
+          </button>
+          <button className="btn-secondary" onClick={() => onStartMode(book.id, "due")}>
+            今日应复习
           </button>
           <button className="btn-secondary" onClick={() => onStartMode(book.id, "wrong")}>
-            复习答错单词
+            错题强化
+          </button>
+          <button className="btn-secondary" onClick={() => onStartMode(book.id, "favorite")}>
+            收藏重点
           </button>
           <button className="btn-secondary" onClick={() => onStartMode(book.id, "all")}>
             重新学习全部单词
@@ -84,7 +101,16 @@ export default function WordOverview({ book, onStartMode, onReset, onDetail, onT
         </div>
       </div>
 
-      <WordList words={visibleWords} onDetail={onDetail} onToggleFavorite={onToggleFavorite} onSpeak={onSpeak} />
+      <WordList words={pagedWords} onDetail={onDetail} onToggleFavorite={onToggleFavorite} onSpeak={onSpeak} />
+      {visibleWords.length > pagedWords.length ? (
+        <div className="mt-4 flex justify-center">
+          <button className="btn-secondary" onClick={() => setDisplayCount((count) => count + 120)}>
+            加载更多（已显示 {pagedWords.length} / {visibleWords.length}）
+          </button>
+        </div>
+      ) : visibleWords.length ? (
+        <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">已显示全部 {visibleWords.length} 个匹配词汇。</p>
+      ) : null}
     </main>
   );
 }
