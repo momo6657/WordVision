@@ -55,6 +55,8 @@ npm run dev
 http://localhost:5173
 ```
 
+本地 Vite 开发服务器已配置 `/api` 代理，会把图片生成请求转发到线上 Vercel API，避免本地页面出现“服务端图片 API 未部署”的提示。
+
 ### 构建生产版本
 
 ```bash
