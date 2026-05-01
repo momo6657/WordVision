@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RefreshCcw, Volume2 } from "lucide-react";
 import OptionButton from "../components/OptionButton.jsx";
 import ProgressBar from "../components/ProgressBar.jsx";
@@ -15,6 +15,7 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
   const currentWord = sessionWords[index];
   const [options, setOptions] = useState([]);
   const [imageState, setImageState] = useState({ status: "idle", imageUrl: "", message: "" });
+  const prefetchingIds = useRef(new Set());
 
   useEffect(() => {
     if (currentWord) {
@@ -36,6 +37,46 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
     if (currentWord.imageUrl && !isGeneratedByFakeProvider(currentWord)) return;
     loadImage(Boolean(currentWord.imageUrl));
   }, [book.id, currentWord?.id]);
+
+  useEffect(() => {
+    if (imageState.status !== "ready") return;
+    const nextWord = sessionWords[index + 1];
+    if (!nextWord || prefetchingIds.current.has(nextWord.id)) return;
+    if (nextWord.imageStatus === "loading") return;
+    if (nextWord.imageUrl && !isGeneratedByFakeProvider(nextWord)) return;
+
+    prefetchingIds.current.add(nextWord.id);
+    onImageUpdate?.(nextWord.id, {
+      imageUrl: "",
+      imageStatus: "loading",
+      imageProvider: "",
+      imageModel: "",
+      imageGeneratedAt: null,
+      imageError: "",
+    });
+
+    generateWordImage({ bookId: book.id, wordId: nextWord.id, force: Boolean(nextWord.imageUrl) })
+      .then((payload) => {
+        onImageUpdate?.(nextWord.id, {
+          imageUrl: payload.imageUrl,
+          imageStatus: "ready",
+          imageProvider: payload.provider,
+          imageModel: payload.model,
+          imageGeneratedAt: new Date().toISOString(),
+          imageError: "",
+        });
+      })
+      .catch((error) => {
+        onImageUpdate?.(nextWord.id, {
+          imageUrl: "",
+          imageStatus: "error",
+          imageProvider: "",
+          imageModel: "",
+          imageGeneratedAt: null,
+          imageError: error.message || "AI 图片生成失败",
+        });
+      });
+  }, [book.id, imageState.status, index, onImageUpdate, sessionWords]);
 
   const loadImage = async (force) => {
     if (!currentWord) return;
