@@ -127,6 +127,7 @@ AI_IMAGE_BASE_URL=https://api.openai.com/v1/images/generations
 AI_IMAGE_API_KEY=你的服务端密钥
 AI_IMAGE_QUALITY=low
 AI_IMAGE_SIZE=1024x1024
+AI_IMAGE_RESPONSE_FORMAT=url
 AI_IMAGE_OUTPUT_FORMAT=png
 AI_IMAGE_STYLE=realistic | anime
 AI_IMAGE_DAILY_LIMIT=120
@@ -138,8 +139,9 @@ BLOB_READ_WRITE_TOKEN=Vercel Blob 写入令牌
 - `openai` 需要在 Vercel 环境变量中配置 `AI_IMAGE_API_KEY` 或 `OPENAI_API_KEY`。没有真实 API Key 时接口会返回“需要配置真实图片 API”，不会再用程序画猪、车或其他假图。
 - `custom` provider 适合接入 OpenAI 兼容或其他 HTTP 图片生成服务。
 - 使用 OpenAI 兼容第三方服务时，`AI_IMAGE_BASE_URL` 可以填写根地址，例如 `https://example.com/v1`；服务端会自动请求 `/images/generations`。
+- `AI_IMAGE_RESPONSE_FORMAT=url` 会优先让 provider 返回图片 URL，前端可更快显示；如果 provider 只返回 base64，服务端仍会兼容。
 - 默认风格为 `realistic`，prompt 会要求输出与单词含义匹配的写实无文字场景图，并明确禁止通用 fallback 主体、文字、标签、矢量图、扁平图标和代码绘制风格。
-- 生成图片会按 `bookId/wordId/provider/model/quality/size/promptHash` 写入 Vercel Blob，命中缓存时不会再次调用模型。未配置 `BLOB_READ_WRITE_TOKEN` 时仍可生成并返回 data URL，但不具备跨会话缓存能力。
+- 生成图片会按 `bookId/wordId/provider/model/quality/size/promptHash` 写入 Vercel Blob，命中缓存时不会再次调用模型。未配置 `BLOB_READ_WRITE_TOKEN` 且 provider 返回 URL 时，服务端会直接把 URL 返回给前端，减少二次下载和 base64 传输延迟。
 
 ## 词库来源
 

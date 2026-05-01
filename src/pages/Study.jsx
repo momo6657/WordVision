@@ -54,9 +54,6 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
         bookId: book.id,
         wordId: currentWord.id,
         force,
-        word: currentWord.word,
-        meaning: currentWord.simpleMeaning || currentWord.meaning,
-        prompt: currentWord.imagePrompt,
       });
       const nextState = {
         imageUrl: payload.imageUrl,
@@ -148,11 +145,7 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
                   <p className="text-lg font-bold text-blue-700 dark:text-blue-200">
                     {imageState.status === "loading" ? "真实 AI 图片生成中" : imageState.status === "error" ? "需要配置真实图片 API" : "等待生成真实 AI 图片"}
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    {imageState.status === "error"
-                      ? "配置 OpenAI 或自定义图片模型 API Key 后，将生成与单词含义对应的写实场景图。"
-                      : `将根据“${currentWord.simpleMeaning || currentWord.meaning}”生成写实场景图。`}
-                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">图片准备好后会自动显示，请先根据画面判断选项。</p>
                   {imageState.message ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{imageState.message}</p> : null}
                 </div>
               )}

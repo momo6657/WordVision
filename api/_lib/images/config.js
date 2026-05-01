@@ -7,6 +7,7 @@ export const getImageConfig = () => {
     apiKey: process.env.AI_IMAGE_API_KEY || process.env.OPENAI_API_KEY || "",
     quality: process.env.AI_IMAGE_QUALITY || "low",
     size: process.env.AI_IMAGE_SIZE || "1024x1024",
+    responseFormat: process.env.AI_IMAGE_RESPONSE_FORMAT || "url",
     outputFormat: process.env.AI_IMAGE_OUTPUT_FORMAT || "png",
     style: process.env.AI_IMAGE_STYLE || "realistic",
     dailyLimit: Number(process.env.AI_IMAGE_DAILY_LIMIT || 120),

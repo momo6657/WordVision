@@ -22,6 +22,7 @@ export const generateImage = async ({ prompt, config }) => {
       n: 1,
       size: config.size,
       quality: config.quality,
+      response_format: config.responseFormat,
       output_format: config.outputFormat,
     }),
   });
@@ -31,8 +32,8 @@ export const generateImage = async ({ prompt, config }) => {
     throw new Error(payload?.error?.message || payload?.message || `Custom image provider failed with ${response.status}`);
   }
 
-  const imageUrl = payload.imageUrl || payload.url || payload.data?.[0]?.url;
-  const b64 = payload.b64_json || payload.data?.[0]?.b64_json;
+  const imageUrl = payload.imageUrl || payload.url || payload.data?.[0]?.imageUrl || payload.data?.[0]?.url;
+  const b64 = payload.b64_json || payload.image_base64 || payload.data?.[0]?.b64_json || payload.data?.[0]?.image_base64;
   if (b64) {
     return {
       imageBytes: Buffer.from(b64, "base64"),

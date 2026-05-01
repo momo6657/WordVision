@@ -8,21 +8,25 @@ test("image config defaults to real OpenAI image generation", () => {
   const oldProvider = process.env.AI_IMAGE_PROVIDER;
   const oldModel = process.env.AI_IMAGE_MODEL;
   const oldStyle = process.env.AI_IMAGE_STYLE;
+  const oldResponseFormat = process.env.AI_IMAGE_RESPONSE_FORMAT;
   const oldFormat = process.env.AI_IMAGE_OUTPUT_FORMAT;
   delete process.env.AI_IMAGE_PROVIDER;
   delete process.env.AI_IMAGE_MODEL;
   delete process.env.AI_IMAGE_STYLE;
+  delete process.env.AI_IMAGE_RESPONSE_FORMAT;
   delete process.env.AI_IMAGE_OUTPUT_FORMAT;
 
   const config = getImageConfig();
   assert.equal(config.provider, "openai");
   assert.equal(config.model, "gpt-image-1");
   assert.equal(config.style, "realistic");
+  assert.equal(config.responseFormat, "url");
   assert.equal(config.outputFormat, "png");
 
   if (oldProvider) process.env.AI_IMAGE_PROVIDER = oldProvider;
   if (oldModel) process.env.AI_IMAGE_MODEL = oldModel;
   if (oldStyle) process.env.AI_IMAGE_STYLE = oldStyle;
+  if (oldResponseFormat) process.env.AI_IMAGE_RESPONSE_FORMAT = oldResponseFormat;
   if (oldFormat) process.env.AI_IMAGE_OUTPUT_FORMAT = oldFormat;
 });
 
@@ -35,8 +39,10 @@ test("mock image provider is disabled", () => {
 test("custom provider appends image generation endpoint for v1 base urls", async () => {
   const oldFetch = globalThis.fetch;
   let requestedUrl = "";
-  globalThis.fetch = async (url) => {
+  let requestBody = {};
+  globalThis.fetch = async (url, init) => {
     requestedUrl = url;
+    requestBody = JSON.parse(init.body);
     return new Response(JSON.stringify({ data: [{ b64_json: Buffer.from("png").toString("base64") }] }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -55,11 +61,14 @@ test("custom provider appends image generation endpoint for v1 base urls", async
         size: "1024x1024",
         quality: "low",
         style: "realistic",
+        responseFormat: "url",
         outputFormat: "png",
       },
     });
 
     assert.equal(requestedUrl, "https://api.vip.crond.dev/v1/images/generations");
+    assert.equal(requestBody.response_format, "url");
+    assert.equal(requestBody.output_format, "png");
     assert.equal(result.provider, "custom");
     assert.equal(result.model, "GPT-image 2");
   } finally {
