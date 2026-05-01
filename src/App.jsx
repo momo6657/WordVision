@@ -95,6 +95,7 @@ export default function App() {
         words: book.words.map((word) => (word.id === wordId ? updater(word) : word)),
       })),
     );
+    setSessionWords((currentWords) => currentWords.map((word) => (word.id === wordId ? updater(word) : word)));
   };
 
   const speak = (text) => {
@@ -140,10 +141,9 @@ export default function App() {
   const answerWord = (word, option) => {
     const correct = option.isCorrect;
     const now = new Date().toISOString();
-    let becameLearned = false;
+    const becameLearned = correct && !word.learned;
 
     updateWord(word.id, (currentWord) => {
-      becameLearned = correct && !currentWord.learned;
       const reviewSchedule = updateReviewSchedule(currentWord, correct, now);
       return {
         ...currentWord,

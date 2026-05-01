@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { list, put } from "@vercel/blob";
+import { del, list, put } from "@vercel/blob";
 import { wordBooks } from "../../src/data/words.js";
 import { getImageConfig, jsonError } from "../_lib/images/config.js";
 import { getProvider } from "../_lib/images/providers/index.js";
@@ -32,6 +32,13 @@ const getCachedBlob = async (prefix) => {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
   const result = await list({ prefix, limit: 1 });
   return result.blobs?.[0] || null;
+};
+
+const deleteCachedBlobs = async (prefix) => {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return;
+  const result = await list({ prefix, limit: 100 });
+  const urls = result.blobs?.map((blob) => blob.url).filter(Boolean) || [];
+  if (urls.length) await del(urls);
 };
 
 const storeBlob = async (path, bytes, mimeType) => {
@@ -145,6 +152,7 @@ export default async function handler(req, res) {
     if (!bytes) throw new Error("Provider returned no image bytes or URL.");
 
     const extension = mimeType.includes("jpeg") ? "jpg" : "png";
+    if (force) await deleteCachedBlobs(prefix);
     const blob = await storeBlob(`${prefix}.${extension}`, bytes, mimeType);
     const imageUrl = blob?.url || toDataUrl(bytes, mimeType);
 

@@ -8,6 +8,8 @@ import { generateWordImage } from "../utils/imageApi.js";
 const isGeneratedByFakeProvider = (word) =>
   ["mock", "client-mock"].includes(word?.imageProvider) || /mock|local|svg|anime-png/i.test(word?.imageModel || "");
 
+const PREFETCH_AHEAD_COUNT = 2;
+
 export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak, onToggleFavorite, onImageUpdate }) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -40,42 +42,43 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
 
   useEffect(() => {
     if (imageState.status !== "ready") return;
-    const nextWord = sessionWords[index + 1];
-    if (!nextWord || prefetchingIds.current.has(nextWord.id)) return;
-    if (nextWord.imageStatus === "loading") return;
-    if (nextWord.imageUrl && !isGeneratedByFakeProvider(nextWord)) return;
+    sessionWords.slice(index + 1, index + 1 + PREFETCH_AHEAD_COUNT).forEach((nextWord) => {
+      if (!nextWord || prefetchingIds.current.has(nextWord.id)) return;
+      if (nextWord.imageStatus === "loading") return;
+      if (nextWord.imageUrl && !isGeneratedByFakeProvider(nextWord)) return;
 
-    prefetchingIds.current.add(nextWord.id);
-    onImageUpdate?.(nextWord.id, {
-      imageUrl: "",
-      imageStatus: "loading",
-      imageProvider: "",
-      imageModel: "",
-      imageGeneratedAt: null,
-      imageError: "",
-    });
-
-    generateWordImage({ bookId: book.id, wordId: nextWord.id, force: Boolean(nextWord.imageUrl) })
-      .then((payload) => {
-        onImageUpdate?.(nextWord.id, {
-          imageUrl: payload.imageUrl,
-          imageStatus: "ready",
-          imageProvider: payload.provider,
-          imageModel: payload.model,
-          imageGeneratedAt: new Date().toISOString(),
-          imageError: "",
-        });
-      })
-      .catch((error) => {
-        onImageUpdate?.(nextWord.id, {
-          imageUrl: "",
-          imageStatus: "error",
-          imageProvider: "",
-          imageModel: "",
-          imageGeneratedAt: null,
-          imageError: error.message || "AI 图片生成失败",
-        });
+      prefetchingIds.current.add(nextWord.id);
+      onImageUpdate?.(nextWord.id, {
+        imageUrl: "",
+        imageStatus: "loading",
+        imageProvider: "",
+        imageModel: "",
+        imageGeneratedAt: null,
+        imageError: "",
       });
+
+      generateWordImage({ bookId: book.id, wordId: nextWord.id, force: Boolean(nextWord.imageUrl) })
+        .then((payload) => {
+          onImageUpdate?.(nextWord.id, {
+            imageUrl: payload.imageUrl,
+            imageStatus: "ready",
+            imageProvider: payload.provider,
+            imageModel: payload.model,
+            imageGeneratedAt: new Date().toISOString(),
+            imageError: "",
+          });
+        })
+        .catch((error) => {
+          onImageUpdate?.(nextWord.id, {
+            imageUrl: "",
+            imageStatus: "error",
+            imageProvider: "",
+            imageModel: "",
+            imageGeneratedAt: null,
+            imageError: error.message || "AI 图片生成失败",
+          });
+        });
+    });
   }, [book.id, imageState.status, index, onImageUpdate, sessionWords]);
 
   const loadImage = async (force) => {
