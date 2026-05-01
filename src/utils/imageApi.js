@@ -1,5 +1,6 @@
 const IMAGE_API_PATH = "/api/images/generate";
 const PROD_API_BASE_URL = "https://wordvision.vercel.app";
+const inFlightRequests = new Map();
 
 const postImageRequest = async (url, { bookId, wordId, force }) => {
   const response = await fetch(url, {
@@ -17,7 +18,7 @@ const shouldRetryProductionApi = (response, payload) => {
   return response.ok && (!payload?.status || !payload?.imageUrl);
 };
 
-export const generateWordImage = async ({ bookId, wordId, force = false }) => {
+const requestImage = async ({ bookId, wordId, force }) => {
   try {
     let result = await postImageRequest(IMAGE_API_PATH, { bookId, wordId, force });
     if (shouldRetryProductionApi(result.response, result.payload)) {
@@ -44,4 +45,16 @@ export const generateWordImage = async ({ bookId, wordId, force = false }) => {
 
     throw new Error(error.message || "当前环境没有可用的服务端图片 API。请部署到 Vercel 并配置真实 AI 图片 API Key。");
   }
+};
+
+export const generateWordImage = ({ bookId, wordId, force = false }) => {
+  const key = `${bookId}:${wordId}:${force ? "force" : "normal"}`;
+  if (!force && inFlightRequests.has(key)) return inFlightRequests.get(key);
+
+  const promise = requestImage({ bookId, wordId, force }).finally(() => {
+    inFlightRequests.delete(key);
+  });
+
+  if (!force) inFlightRequests.set(key, promise);
+  return promise;
 };

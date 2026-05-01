@@ -107,12 +107,12 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
   useEffect(() => {
     if (!currentWord || currentWord.imageStatus === "loading") return;
     if (hasUsableImage(currentWord)) return;
-    loadImage(Boolean(currentWord.imageUrl));
+    loadImage(false);
   }, [book.id, currentWord?.id]);
 
   useEffect(() => {
     sessionWords.slice(index + 1, index + 1 + PREFETCH_AHEAD_COUNT).forEach((nextWord) => {
-      requestImageForWord(nextWord, { force: Boolean(nextWord?.imageUrl), silent: true });
+      requestImageForWord(nextWord, { force: false, silent: true });
     });
   }, [book.id, index, sessionWords]);
 
