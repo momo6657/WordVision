@@ -66,10 +66,11 @@ export default async function handler(req, res) {
   const config = getImageConfig();
   const meaning = word.simpleMeaning || word.meaning;
   const prompt = [
-    "Create a clean educational visual mnemonic image for an English vocabulary learning app.",
-    `Word: ${word.word}. Meaning: ${meaning}.`,
+    "Create a clean educational scene image for an English vocabulary learning app.",
+    `Depict the concrete object, action, or situation of the vocabulary word directly. If the word is car, show a small car; if it is abandon, show someone leaving an object behind.`,
+    `Target vocabulary word: ${word.word}. Core meaning: ${meaning}.`,
     word.imagePrompt || word.memoryTip || "",
-    "No text, no watermark, friendly classroom style, clear central metaphor.",
+    "The image must be a pictorial scene only: no letters, no words, no captions, no labels, no watermark, no UI, no spelling of the target word. Friendly modern illustration, clear central metaphor.",
   ]
     .filter(Boolean)
     .join(" ");
