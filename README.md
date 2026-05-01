@@ -144,6 +144,7 @@ BLOB_READ_WRITE_TOKEN=Vercel Blob 写入令牌
 - `AI_IMAGE_RESPONSE_FORMAT=url` 会优先让 provider 返回图片 URL，前端可更快显示；如果 provider 只返回 base64，服务端仍会兼容。
 - 默认风格为 `realistic`，prompt 会要求输出与单词含义匹配的写实无文字场景图，并明确禁止通用 fallback 主体、文字、标签、矢量图、扁平图标和代码绘制风格。
 - 生成图片会按 `bookId/wordId/provider/model/quality/size/promptHash` 写入 Vercel Blob，命中缓存时不会再次调用模型。未配置 `BLOB_READ_WRITE_TOKEN` 且 provider 返回 URL 时，服务端会直接把 URL 返回给前端，减少二次下载和 base64 传输延迟。
+- 学习页会在当前图片准备好后预生成后两个单词的图片，并把生成结果写入 IndexedDB；同一浏览器跨会话会直接复用已生成图片，生产环境则优先命中 Vercel Blob 跨设备缓存。
 
 ## 词库来源
 
