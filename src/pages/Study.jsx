@@ -5,6 +5,8 @@ import ProgressBar from "../components/ProgressBar.jsx";
 import { createOptions } from "../utils/quiz.js";
 import { generateWordImage } from "../utils/imageApi.js";
 
+const isLegacyTextImage = (word) => ["local-svg", "mock-svg"].includes(word?.imageModel);
+
 export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak, onToggleFavorite, onImageUpdate }) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -29,8 +31,9 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
   }, [book.id, currentWord?.id]);
 
   useEffect(() => {
-    if (!currentWord || currentWord.imageUrl || currentWord.imageStatus === "loading") return;
-    loadImage(false);
+    if (!currentWord || currentWord.imageStatus === "loading") return;
+    if (currentWord.imageUrl && !isLegacyTextImage(currentWord)) return;
+    loadImage(isLegacyTextImage(currentWord));
   }, [book.id, currentWord?.id]);
 
   const loadImage = async (force) => {
