@@ -116,27 +116,29 @@ Content-Type: application/json
 }
 ```
 
-服务端按环境变量选择 provider。默认可使用 OpenAI；如果后期更换更经济的模型，只需要增加或调整 `api/_lib/images/providers/` 下的 adapter，并修改环境变量，不需要改学习页。
+服务端按环境变量选择 provider。当前版本不再提供任何代码绘制的 mock 图片，也不会生成 SVG 占位图；学习页只接受真实图片 API 返回的 PNG/JPG/WebP 位图。默认 provider 为 OpenAI；如果后期更换更经济的模型，只需要增加或调整 `api/_lib/images/providers/` 下的 adapter，并修改环境变量，不需要改学习页。
 
 关键环境变量：
 
 ```text
-AI_IMAGE_PROVIDER=openai | mock | custom
-AI_IMAGE_MODEL=gpt-image-1.5
+AI_IMAGE_PROVIDER=openai | custom
+AI_IMAGE_MODEL=gpt-image-1
 AI_IMAGE_BASE_URL=https://api.openai.com/v1/images/generations
 AI_IMAGE_API_KEY=你的服务端密钥
 AI_IMAGE_QUALITY=low
 AI_IMAGE_SIZE=1024x1024
-AI_IMAGE_STYLE=anime | realistic
+AI_IMAGE_OUTPUT_FORMAT=png
+AI_IMAGE_STYLE=realistic | anime
 AI_IMAGE_DAILY_LIMIT=120
 BLOB_READ_WRITE_TOKEN=Vercel Blob 写入令牌
 ```
 
 说明：
 
-- `mock` provider 不需要 API Key，可用于本地开发和演示降级；它会生成 PNG 情景图片，不使用 SVG。
+- `openai` 需要在 Vercel 环境变量中配置 `AI_IMAGE_API_KEY` 或 `OPENAI_API_KEY`。没有真实 API Key 时接口会返回“需要配置真实图片 API”，不会再用程序画猪、车或其他假图。
 - `custom` provider 适合接入 OpenAI 兼容或其他 HTTP 图片生成服务。
-- 真实 AI provider 的 prompt 会要求输出写实或动漫风格的无文字场景图；生成图片会按 `bookId/wordId/provider/model/quality/size/promptHash` 写入 Vercel Blob，命中缓存时不会再次调用模型。
+- 默认风格为 `realistic`，prompt 会要求输出与单词含义匹配的写实无文字场景图，并明确禁止通用 fallback 主体、文字、标签、矢量图、扁平图标和代码绘制风格。
+- 生成图片会按 `bookId/wordId/provider/model/quality/size/promptHash` 写入 Vercel Blob，命中缓存时不会再次调用模型。未配置 `BLOB_READ_WRITE_TOKEN` 时仍可生成并返回 data URL，但不具备跨会话缓存能力。
 
 ## 词库来源
 

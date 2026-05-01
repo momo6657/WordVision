@@ -5,7 +5,8 @@ import ProgressBar from "../components/ProgressBar.jsx";
 import { createOptions } from "../utils/quiz.js";
 import { generateWordImage } from "../utils/imageApi.js";
 
-const isLegacyTextImage = (word) => ["local-svg", "mock-svg"].includes(word?.imageModel);
+const isGeneratedByFakeProvider = (word) =>
+  ["mock", "client-mock"].includes(word?.imageProvider) || /mock|local|svg|anime-png/i.test(word?.imageModel || "");
 
 export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak, onToggleFavorite, onImageUpdate }) {
   const [index, setIndex] = useState(0);
@@ -21,25 +22,32 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
       setSelected(null);
       setResult(null);
       setImageState({
-        status: currentWord.imageUrl ? "ready" : currentWord.imageStatus || "idle",
-        imageUrl: currentWord.imageUrl || "",
+        status: currentWord.imageUrl && !isGeneratedByFakeProvider(currentWord) ? "ready" : currentWord.imageStatus || "idle",
+        imageUrl: currentWord.imageUrl && !isGeneratedByFakeProvider(currentWord) ? currentWord.imageUrl : "",
         message: currentWord.imageError || "",
-        provider: currentWord.imageProvider || "",
-        model: currentWord.imageModel || "",
+        provider: currentWord.imageUrl && !isGeneratedByFakeProvider(currentWord) ? currentWord.imageProvider || "" : "",
+        model: currentWord.imageUrl && !isGeneratedByFakeProvider(currentWord) ? currentWord.imageModel || "" : "",
       });
     }
   }, [book.id, currentWord?.id]);
 
   useEffect(() => {
     if (!currentWord || currentWord.imageStatus === "loading") return;
-    if (currentWord.imageUrl && !isLegacyTextImage(currentWord)) return;
-    loadImage(isLegacyTextImage(currentWord));
+    if (currentWord.imageUrl && !isGeneratedByFakeProvider(currentWord)) return;
+    loadImage(Boolean(currentWord.imageUrl));
   }, [book.id, currentWord?.id]);
 
   const loadImage = async (force) => {
     if (!currentWord) return;
-    setImageState((current) => ({ ...current, status: "loading", message: force ? "正在重新生成 AI 图片..." : "正在生成 AI 图片..." }));
-    onImageUpdate?.(currentWord.id, { imageStatus: "loading", imageError: "" });
+    setImageState({ status: "loading", imageUrl: "", message: force ? "正在重新生成真实 AI 图片..." : "正在生成真实 AI 图片..." });
+    onImageUpdate?.(currentWord.id, {
+      imageUrl: "",
+      imageStatus: "loading",
+      imageProvider: "",
+      imageModel: "",
+      imageGeneratedAt: null,
+      imageError: "",
+    });
 
     try {
       const payload = await generateWordImage({
@@ -52,7 +60,7 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
       });
       const nextState = {
         imageUrl: payload.imageUrl,
-        imageStatus: payload.status === "mock" ? "mock" : "ready",
+        imageStatus: "ready",
         imageProvider: payload.provider,
         imageModel: payload.model,
         imageGeneratedAt: new Date().toISOString(),
@@ -69,7 +77,14 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
     } catch (error) {
       const message = error.message || "AI 图片生成失败";
       setImageState({ status: "error", imageUrl: "", message });
-      onImageUpdate?.(currentWord.id, { imageStatus: "error", imageError: message });
+      onImageUpdate?.(currentWord.id, {
+        imageUrl: "",
+        imageStatus: "error",
+        imageProvider: "",
+        imageModel: "",
+        imageGeneratedAt: null,
+        imageError: message,
+      });
     }
   };
 
@@ -131,9 +146,13 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
               ) : (
                 <div>
                   <p className="text-lg font-bold text-blue-700 dark:text-blue-200">
-                    {imageState.status === "loading" ? "AI 图片生成中" : imageState.status === "error" ? "AI 图片生成失败" : "等待生成 AI 图片"}
+                    {imageState.status === "loading" ? "真实 AI 图片生成中" : imageState.status === "error" ? "需要配置真实图片 API" : "等待生成真实 AI 图片"}
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{currentWord.imagePrompt}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    {imageState.status === "error"
+                      ? "配置 OpenAI 或自定义图片模型 API Key 后，将生成与单词含义对应的写实场景图。"
+                      : `将根据“${currentWord.simpleMeaning || currentWord.meaning}”生成写实场景图。`}
+                  </p>
                   {imageState.message ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{imageState.message}</p> : null}
                 </div>
               )}

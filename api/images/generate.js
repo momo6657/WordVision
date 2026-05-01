@@ -65,12 +65,19 @@ export default async function handler(req, res) {
 
   const config = getImageConfig();
   const meaning = word.simpleMeaning || word.meaning;
+  const visualStyle =
+    config.style === "anime"
+      ? "high-quality anime scene"
+      : "realistic photographic scene with natural lighting, real objects, and believable real-world composition";
   const prompt = [
-    `Create a ${config.style === "realistic" ? "realistic" : "anime-style"} educational scene image for an English vocabulary learning app.`,
-    "Depict the concrete object, action, or situation of the vocabulary word directly. For abstract words, depict a clear real-world situation that represents the meaning.",
+    `Create one ${visualStyle} for an English vocabulary learning app.`,
+    "Depict the concrete object, action, emotion, or situation of the vocabulary word directly. For abstract words, show a clear real-world situation that represents the meaning.",
     `Target vocabulary word: ${word.word}. Core meaning: ${meaning}.`,
-    word.imagePrompt || word.memoryTip || "",
-    "The image must be a pictorial scene only: no letters, no words, no captions, no labels, no watermark, no UI, no spelling of the target word. Make it visually useful for memory.",
+    word.definition ? `Dictionary context: ${word.definition}.` : "",
+    word.example ? `Example context: ${word.example}` : "",
+    "Do not use a generic fallback subject. Do not show a pig, car, animal, person, or object unless it directly matches the target word meaning.",
+    "The image must be a pictorial scene only: no letters, no words, no captions, no labels, no watermark, no UI, no spelling of the target word.",
+    "Avoid vector art, flat icons, diagrams, clipart, logos, or code-generated illustration styles. Output should be a normal bitmap image suitable for memory.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -91,7 +98,14 @@ export default async function handler(req, res) {
       }
     }
 
-    if (config.provider !== "mock" && !consumeDailyQuota(config.dailyLimit)) {
+    if (!config.apiKey && ["openai", "custom"].includes(config.provider)) {
+      return jsonError(res, 501, "需要配置真实图片生成 API：请在 Vercel 环境变量中设置 AI_IMAGE_API_KEY 或 OPENAI_API_KEY。", {
+        provider: config.provider,
+        model: config.model,
+      });
+    }
+
+    if (!consumeDailyQuota(config.dailyLimit)) {
       return jsonError(res, 429, "Daily image generation limit reached.", {
         provider: config.provider,
         model: config.model,
@@ -99,14 +113,13 @@ export default async function handler(req, res) {
     }
 
     const provider = getProvider(config.provider);
-    let generated;
-    try {
-      generated = await provider.generateImage({ prompt, word, meaning, config });
-    } catch (error) {
-      const mock = getProvider("mock");
-      generated = await mock.generateImage({ prompt, word, meaning, config: { ...config, model: "mock-fallback" } });
-      generated.message = error.message;
+    if (!provider) {
+      return jsonError(res, 400, `Unsupported AI_IMAGE_PROVIDER: ${config.provider}`, {
+        provider: config.provider,
+        model: config.model,
+      });
     }
+    const generated = await provider.generateImage({ prompt, word, meaning, config });
 
     const mimeType = generated.mimeType || "image/png";
     const bytes = generated.imageBytes || (generated.imageUrl ? await readRemoteBytes(generated.imageUrl) : null);
@@ -117,7 +130,7 @@ export default async function handler(req, res) {
     const imageUrl = blob?.url || toDataUrl(bytes, mimeType);
 
     return res.status(200).json({
-      status: generated.provider === "mock" ? "mock" : "ready",
+      status: "ready",
       imageUrl,
       cached: Boolean(blob),
       provider: generated.provider,
