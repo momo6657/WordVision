@@ -35,6 +35,7 @@ export const generateImage = async ({ prompt, config }) => {
       n: 1,
       size: config.size,
       quality: config.quality,
+      style: config.style,
     }),
   });
 

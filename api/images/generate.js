@@ -66,11 +66,11 @@ export default async function handler(req, res) {
   const config = getImageConfig();
   const meaning = word.simpleMeaning || word.meaning;
   const prompt = [
-    "Create a clean educational scene image for an English vocabulary learning app.",
-    `Depict the concrete object, action, or situation of the vocabulary word directly. If the word is car, show a small car; if it is abandon, show someone leaving an object behind.`,
+    `Create a ${config.style === "realistic" ? "realistic" : "anime-style"} educational scene image for an English vocabulary learning app.`,
+    "Depict the concrete object, action, or situation of the vocabulary word directly. For abstract words, depict a clear real-world situation that represents the meaning.",
     `Target vocabulary word: ${word.word}. Core meaning: ${meaning}.`,
     word.imagePrompt || word.memoryTip || "",
-    "The image must be a pictorial scene only: no letters, no words, no captions, no labels, no watermark, no UI, no spelling of the target word. Friendly modern illustration, clear central metaphor.",
+    "The image must be a pictorial scene only: no letters, no words, no captions, no labels, no watermark, no UI, no spelling of the target word. Make it visually useful for memory.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -112,7 +112,7 @@ export default async function handler(req, res) {
     const bytes = generated.imageBytes || (generated.imageUrl ? await readRemoteBytes(generated.imageUrl) : null);
     if (!bytes) throw new Error("Provider returned no image bytes or URL.");
 
-    const extension = mimeType.includes("svg") ? "svg" : mimeType.includes("jpeg") ? "jpg" : "png";
+    const extension = mimeType.includes("jpeg") ? "jpg" : "png";
     const blob = await storeBlob(`${prefix}.${extension}`, bytes, mimeType);
     const imageUrl = blob?.url || toDataUrl(bytes, mimeType);
 

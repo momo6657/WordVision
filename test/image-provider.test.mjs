@@ -29,7 +29,8 @@ test("image provider adapter can fall back to mock", async () => {
   });
 
   assert.equal(result.provider, "mock");
-  assert.equal(result.mimeType, "image/svg+xml");
+  assert.equal(result.mimeType, "image/png");
   assert.ok(result.imageBytes.length > 100);
-  assert.equal(result.imageBytes.toString("utf8").includes("<text"), false);
+  assert.equal(result.imageBytes[0], 0x89);
+  assert.equal(result.imageBytes.toString("utf8").includes("<svg"), false);
 });

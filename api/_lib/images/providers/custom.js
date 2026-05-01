@@ -16,6 +16,7 @@ export const generateImage = async ({ prompt, word, meaning, config }) => {
       meaning,
       size: config.size,
       quality: config.quality,
+      style: config.style,
     }),
   });
 

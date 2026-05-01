@@ -1,98 +1,167 @@
-const sceneTypeFor = ({ word, meaning, prompt }) => {
-  const text = `${word?.word || ""} ${meaning || ""} ${prompt || ""}`.toLowerCase();
-  if (/(car|bus|truck|train|vehicle|drive|road|transport|arrive)/.test(text)) return "vehicle";
-  if (/(tree|plant|river|forest|water|environment|nature|grow|develop|danger)/.test(text)) return "nature";
-  if (/(student|people|person|communicate|community|believe|accept|borrow|choice|success)/.test(text)) return "people";
-  if (/(book|study|school|education|knowledge|academic|analyze|evaluate|idea|innovation|abstract)/.test(text)) return "study";
+import { PNG } from "pngjs";
+
+const WIDTH = 1024;
+const HEIGHT = 1024;
+
+const sceneTypeFor = ({ word, meaning, imagePrompt }) => {
+  const text = `${word?.word || ""} ${meaning || ""} ${imagePrompt || ""}`.toLowerCase();
+  if (/(pig|pork|hog|swine|猪|animal|dog|cat|bird|horse|fish|sheep|cow|rabbit)/.test(text)) return "animal";
+  if (/(car|bus|truck|train|vehicle|drive|road|transport|arrive|汽车|车辆|火车)/.test(text)) return "vehicle";
+  if (/(tree|plant|river|forest|water|environment|nature|grow|develop|danger|树|河|森林|环境)/.test(text)) return "nature";
+  if (/(student|people|person|communicate|community|believe|accept|borrow|choice|success|人|学生|交流|社区)/.test(text)) return "people";
+  if (/(book|study|school|education|knowledge|academic|analyze|evaluate|idea|innovation|abstract|书|学习|教育|知识)/.test(text)) return "study";
   return "memory";
 };
 
-const vehicleScene = () => `
-  <rect x="0" y="690" width="1024" height="190" fill="#94a3b8"/>
-  <rect x="0" y="742" width="1024" height="26" fill="#f8fafc" opacity=".9"/>
-  <rect x="230" y="500" width="520" height="140" rx="48" fill="#2563eb"/>
-  <path d="M330 500 L420 380 H610 L705 500 Z" fill="#60a5fa"/>
-  <rect x="440" y="410" width="78" height="74" rx="12" fill="#dbeafe"/>
-  <rect x="540" y="410" width="78" height="74" rx="12" fill="#dbeafe"/>
-  <circle cx="345" cy="652" r="62" fill="#0f172a"/>
-  <circle cx="345" cy="652" r="28" fill="#e2e8f0"/>
-  <circle cx="640" cy="652" r="62" fill="#0f172a"/>
-  <circle cx="640" cy="652" r="28" fill="#e2e8f0"/>
-  <circle cx="758" cy="555" r="18" fill="#fde68a"/>
-`;
-
-const natureScene = () => `
-  <rect x="0" y="650" width="1024" height="260" fill="#86efac"/>
-  <path d="M0 692 C180 620 320 735 500 675 C705 605 830 715 1024 650 V1024 H0 Z" fill="#22c55e" opacity=".75"/>
-  <rect x="488" y="470" width="62" height="240" rx="28" fill="#92400e"/>
-  <circle cx="520" cy="380" r="142" fill="#16a34a"/>
-  <circle cx="430" cy="420" r="104" fill="#22c55e"/>
-  <circle cx="620" cy="430" r="112" fill="#15803d"/>
-  <path d="M0 800 C190 740 350 860 520 800 C700 735 865 850 1024 785 V1024 H0 Z" fill="#38bdf8" opacity=".72"/>
-  <circle cx="810" cy="220" r="72" fill="#fde047"/>
-`;
-
-const peopleScene = () => `
-  <rect x="0" y="700" width="1024" height="210" fill="#fde68a"/>
-  <circle cx="365" cy="360" r="70" fill="#f59e0b"/>
-  <path d="M280 520 C300 450 430 450 452 520 L485 700 H250 Z" fill="#2563eb"/>
-  <circle cx="660" cy="370" r="68" fill="#fbbf24"/>
-  <path d="M585 525 C604 455 724 455 748 525 L790 700 H548 Z" fill="#10b981"/>
-  <path d="M450 515 C525 468 585 468 660 515" stroke="#0f172a" stroke-width="24" fill="none" stroke-linecap="round"/>
-  <circle cx="505" cy="462" r="18" fill="#0f172a"/>
-  <circle cx="604" cy="462" r="18" fill="#0f172a"/>
-  <path d="M320 335 C350 320 382 320 412 335" stroke="#78350f" stroke-width="14" fill="none" stroke-linecap="round"/>
-  <path d="M620 347 C648 332 680 332 707 347" stroke="#78350f" stroke-width="14" fill="none" stroke-linecap="round"/>
-`;
-
-const studyScene = () => `
-  <rect x="190" y="300" width="650" height="430" rx="42" fill="#ffffff" opacity=".9"/>
-  <path d="M250 380 H498 C542 380 578 416 578 460 V705 H328 C285 705 250 670 250 627 Z" fill="#dbeafe"/>
-  <path d="M578 460 C578 416 614 380 658 380 H774 V627 C774 670 739 705 696 705 H578 Z" fill="#bfdbfe"/>
-  <path d="M578 458 V705" stroke="#1d4ed8" stroke-width="12"/>
-  <circle cx="520" cy="230" r="70" fill="#facc15"/>
-  <path d="M520 120 V70 M520 390 V340 M390 230 H340 M700 230 H650 M428 138 L394 104 M612 138 L646 104 M428 322 L394 356 M612 322 L646 356" stroke="#f59e0b" stroke-width="20" stroke-linecap="round"/>
-  <circle cx="520" cy="230" r="32" fill="#fef3c7"/>
-`;
-
-const memoryScene = () => `
-  <rect x="195" y="525" width="634" height="140" rx="70" fill="#bfdbfe"/>
-  <path d="M275 525 C315 380 445 300 512 220 C580 300 710 380 750 525 Z" fill="#60a5fa"/>
-  <circle cx="512" cy="260" r="72" fill="#fef3c7"/>
-  <path d="M420 680 C455 760 570 790 615 680" stroke="#2563eb" stroke-width="34" fill="none" stroke-linecap="round"/>
-  <circle cx="325" cy="410" r="58" fill="#10b981" opacity=".85"/>
-  <circle cx="705" cy="410" r="58" fill="#f97316" opacity=".85"/>
-`;
-
-const sceneMarkup = (type) => {
-  if (type === "vehicle") return vehicleScene();
-  if (type === "nature") return natureScene();
-  if (type === "people") return peopleScene();
-  if (type === "study") return studyScene();
-  return memoryScene();
+const hex = (value) => {
+  const clean = value.replace("#", "");
+  return [parseInt(clean.slice(0, 2), 16), parseInt(clean.slice(2, 4), 16), parseInt(clean.slice(4, 6), 16), 255];
 };
 
-export const generateImage = async ({ word, meaning, prompt, config }) => {
-  const type = sceneTypeFor({ word, meaning, prompt });
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="visual vocabulary scene">
-  <defs>
-    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#dbeafe"/>
-      <stop offset="62%" stop-color="#ecfdf5"/>
-      <stop offset="100%" stop-color="#fef3c7"/>
-    </linearGradient>
-  </defs>
-  <rect width="1024" height="1024" rx="72" fill="url(#sky)"/>
-  <circle cx="818" cy="180" r="98" fill="#2563eb" opacity=".1"/>
-  <circle cx="195" cy="815" r="132" fill="#10b981" opacity=".12"/>
-  ${sceneMarkup(type)}
-</svg>`;
+const createCanvas = () => {
+  const png = new PNG({ width: WIDTH, height: HEIGHT });
+  const top = hex("#dbeafe");
+  const bottom = hex("#fef3c7");
+  for (let y = 0; y < HEIGHT; y += 1) {
+    const t = y / HEIGHT;
+    const color = top.map((v, i) => Math.round(v * (1 - t) + bottom[i] * t));
+    for (let x = 0; x < WIDTH; x += 1) {
+      const idx = (WIDTH * y + x) << 2;
+      png.data[idx] = color[0];
+      png.data[idx + 1] = color[1];
+      png.data[idx + 2] = color[2];
+      png.data[idx + 3] = 255;
+    }
+  }
+  return png;
+};
+
+const setPixel = (png, x, y, color) => {
+  if (x < 0 || y < 0 || x >= WIDTH || y >= HEIGHT) return;
+  const idx = (WIDTH * y + x) << 2;
+  png.data[idx] = color[0];
+  png.data[idx + 1] = color[1];
+  png.data[idx + 2] = color[2];
+  png.data[idx + 3] = color[3] ?? 255;
+};
+
+const rect = (png, x, y, w, h, fill) => {
+  const color = hex(fill);
+  for (let yy = Math.max(0, y); yy < Math.min(HEIGHT, y + h); yy += 1) {
+    for (let xx = Math.max(0, x); xx < Math.min(WIDTH, x + w); xx += 1) setPixel(png, xx, yy, color);
+  }
+};
+
+const circle = (png, cx, cy, r, fill) => {
+  const color = hex(fill);
+  for (let y = cy - r; y <= cy + r; y += 1) {
+    for (let x = cx - r; x <= cx + r; x += 1) {
+      if ((x - cx) ** 2 + (y - cy) ** 2 <= r ** 2) setPixel(png, x, y, color);
+    }
+  }
+};
+
+const ellipse = (png, cx, cy, rx, ry, fill) => {
+  const color = hex(fill);
+  for (let y = cy - ry; y <= cy + ry; y += 1) {
+    for (let x = cx - rx; x <= cx + rx; x += 1) {
+      if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1) setPixel(png, x, y, color);
+    }
+  }
+};
+
+const sceneBase = (png) => {
+  circle(png, 825, 180, 82, "#fde047");
+  rect(png, 0, 735, WIDTH, 170, "#a7f3d0");
+};
+
+const animalScene = (png) => {
+  sceneBase(png);
+  ellipse(png, 520, 555, 250, 150, "#f9a8d4");
+  circle(png, 320, 500, 110, "#f9a8d4");
+  circle(png, 285, 385, 46, "#f472b6");
+  circle(png, 360, 392, 46, "#f472b6");
+  ellipse(png, 265, 515, 48, 34, "#fb7185");
+  circle(png, 252, 510, 8, "#7f1d1d");
+  circle(png, 280, 510, 8, "#7f1d1d");
+  circle(png, 340, 480, 12, "#111827");
+  rect(png, 420, 680, 42, 92, "#f472b6");
+  rect(png, 610, 680, 42, 92, "#f472b6");
+  circle(png, 755, 520, 36, "#f472b6");
+};
+
+const vehicleScene = (png) => {
+  rect(png, 0, 700, WIDTH, 170, "#94a3b8");
+  rect(png, 0, 760, WIDTH, 24, "#f8fafc");
+  rect(png, 240, 505, 520, 135, "#2563eb");
+  rect(png, 360, 400, 250, 120, "#60a5fa");
+  rect(png, 430, 430, 75, 65, "#dbeafe");
+  rect(png, 525, 430, 75, 65, "#dbeafe");
+  circle(png, 360, 655, 64, "#0f172a");
+  circle(png, 360, 655, 28, "#e2e8f0");
+  circle(png, 650, 655, 64, "#0f172a");
+  circle(png, 650, 655, 28, "#e2e8f0");
+  circle(png, 770, 560, 20, "#fde68a");
+};
+
+const natureScene = (png) => {
+  sceneBase(png);
+  rect(png, 475, 470, 70, 280, "#92400e");
+  circle(png, 520, 350, 145, "#16a34a");
+  circle(png, 405, 420, 108, "#22c55e");
+  circle(png, 635, 430, 112, "#15803d");
+  rect(png, 0, 805, WIDTH, 115, "#38bdf8");
+};
+
+const peopleScene = (png) => {
+  sceneBase(png);
+  circle(png, 365, 365, 70, "#f59e0b");
+  ellipse(png, 365, 585, 125, 170, "#2563eb");
+  circle(png, 660, 370, 68, "#fbbf24");
+  ellipse(png, 660, 590, 120, 170, "#10b981");
+  rect(png, 450, 505, 210, 35, "#0f172a");
+  circle(png, 505, 462, 18, "#0f172a");
+  circle(png, 604, 462, 18, "#0f172a");
+};
+
+const studyScene = (png) => {
+  sceneBase(png);
+  rect(png, 210, 330, 604, 380, "#ffffff");
+  rect(png, 255, 390, 260, 300, "#dbeafe");
+  rect(png, 515, 390, 255, 300, "#bfdbfe");
+  rect(png, 505, 385, 18, 312, "#1d4ed8");
+  circle(png, 520, 230, 78, "#facc15");
+  circle(png, 520, 230, 34, "#fef3c7");
+};
+
+const memoryScene = (png) => {
+  sceneBase(png);
+  ellipse(png, 512, 580, 310, 120, "#bfdbfe");
+  ellipse(png, 512, 440, 210, 230, "#60a5fa");
+  circle(png, 512, 260, 76, "#fef3c7");
+  circle(png, 325, 410, 58, "#10b981");
+  circle(png, 705, 410, 58, "#f97316");
+};
+
+const drawScene = (png, type) => {
+  if (type === "animal") return animalScene(png);
+  if (type === "vehicle") return vehicleScene(png);
+  if (type === "nature") return natureScene(png);
+  if (type === "people") return peopleScene(png);
+  if (type === "study") return studyScene(png);
+  return memoryScene(png);
+};
+
+export const generateImage = async ({ word, meaning, config }) => {
+  const png = createCanvas();
+  const type = sceneTypeFor({ word, meaning, imagePrompt: word?.imagePrompt || word?.memoryTip || "" });
+  drawScene(png, type);
 
   return {
-    imageBytes: Buffer.from(svg),
-    mimeType: "image/svg+xml",
+    imageBytes: PNG.sync.write(png),
+    mimeType: "image/png",
     provider: "mock",
-    model: config.model || "mock-scene-svg",
+    model: config.model || "mock-anime-png",
     costTier: "free",
   };
 };

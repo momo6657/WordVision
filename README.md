@@ -127,15 +127,16 @@ AI_IMAGE_BASE_URL=https://api.openai.com/v1/images/generations
 AI_IMAGE_API_KEY=你的服务端密钥
 AI_IMAGE_QUALITY=low
 AI_IMAGE_SIZE=1024x1024
+AI_IMAGE_STYLE=anime | realistic
 AI_IMAGE_DAILY_LIMIT=120
 BLOB_READ_WRITE_TOKEN=Vercel Blob 写入令牌
 ```
 
 说明：
 
-- `mock` provider 不需要 API Key，可用于本地开发和演示降级。
+- `mock` provider 不需要 API Key，可用于本地开发和演示降级；它会生成 PNG 情景图片，不使用 SVG。
 - `custom` provider 适合接入 OpenAI 兼容或其他 HTTP 图片生成服务。
-- 生成图片会按 `bookId/wordId/provider/model/quality/size/promptHash` 写入 Vercel Blob；命中缓存时不会再次调用模型。
+- 真实 AI provider 的 prompt 会要求输出写实或动漫风格的无文字场景图；生成图片会按 `bookId/wordId/provider/model/quality/size/promptHash` 写入 Vercel Blob，命中缓存时不会再次调用模型。
 
 ## 词库来源
 
