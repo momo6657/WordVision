@@ -1,9 +1,16 @@
-export const generateImage = async ({ prompt, word, meaning, config }) => {
+const resolveGenerationUrl = (baseUrl) => {
+  const cleanUrl = String(baseUrl || "").trim().replace(/\/+$/, "");
+  if (!cleanUrl) return "";
+  if (/\/images\/generations$/i.test(cleanUrl)) return cleanUrl;
+  return `${cleanUrl}/images/generations`;
+};
+
+export const generateImage = async ({ prompt, config }) => {
   if (!config.baseUrl || !config.apiKey) {
     throw new Error("AI_IMAGE_BASE_URL and AI_IMAGE_API_KEY are required for the custom provider.");
   }
 
-  const response = await fetch(config.baseUrl, {
+  const response = await fetch(resolveGenerationUrl(config.baseUrl), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
@@ -12,12 +19,10 @@ export const generateImage = async ({ prompt, word, meaning, config }) => {
     body: JSON.stringify({
       model: config.model,
       prompt,
-      word: word.word,
-      meaning,
+      n: 1,
       size: config.size,
       quality: config.quality,
-      style: config.style,
-      outputFormat: config.outputFormat,
+      output_format: config.outputFormat,
     }),
   });
 

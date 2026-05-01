@@ -137,6 +137,7 @@ BLOB_READ_WRITE_TOKEN=Vercel Blob 写入令牌
 
 - `openai` 需要在 Vercel 环境变量中配置 `AI_IMAGE_API_KEY` 或 `OPENAI_API_KEY`。没有真实 API Key 时接口会返回“需要配置真实图片 API”，不会再用程序画猪、车或其他假图。
 - `custom` provider 适合接入 OpenAI 兼容或其他 HTTP 图片生成服务。
+- 使用 OpenAI 兼容第三方服务时，`AI_IMAGE_BASE_URL` 可以填写根地址，例如 `https://example.com/v1`；服务端会自动请求 `/images/generations`。
 - 默认风格为 `realistic`，prompt 会要求输出与单词含义匹配的写实无文字场景图，并明确禁止通用 fallback 主体、文字、标签、矢量图、扁平图标和代码绘制风格。
 - 生成图片会按 `bookId/wordId/provider/model/quality/size/promptHash` 写入 Vercel Blob，命中缓存时不会再次调用模型。未配置 `BLOB_READ_WRITE_TOKEN` 时仍可生成并返回 data URL，但不具备跨会话缓存能力。
 
