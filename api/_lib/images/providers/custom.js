@@ -2,6 +2,9 @@ const resolveGenerationUrl = (baseUrl) => {
   const cleanUrl = String(baseUrl || "").trim().replace(/\/+$/, "");
   if (!cleanUrl) return "";
   if (/\/images\/generations$/i.test(cleanUrl)) return cleanUrl;
+  if (!/\/v\d+$/i.test(cleanUrl) && /^https?:\/\/(www\.)?uocode\.com$/i.test(cleanUrl)) {
+    return `${cleanUrl}/v1/images/generations`;
+  }
   return `${cleanUrl}/images/generations`;
 };
 

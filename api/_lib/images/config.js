@@ -10,6 +10,7 @@ export const getImageConfig = () => {
     responseFormat: process.env.AI_IMAGE_RESPONSE_FORMAT || "url",
     outputFormat: process.env.AI_IMAGE_OUTPUT_FORMAT || "png",
     style: process.env.AI_IMAGE_STYLE || "realistic",
+    cacheStrategy: process.env.AI_IMAGE_CACHE_STRATEGY || "fast-url",
     dailyLimit: Number(process.env.AI_IMAGE_DAILY_LIMIT || 120),
   };
 };

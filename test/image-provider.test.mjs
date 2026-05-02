@@ -10,11 +10,13 @@ test("image config defaults to real OpenAI image generation", () => {
   const oldStyle = process.env.AI_IMAGE_STYLE;
   const oldResponseFormat = process.env.AI_IMAGE_RESPONSE_FORMAT;
   const oldFormat = process.env.AI_IMAGE_OUTPUT_FORMAT;
+  const oldCacheStrategy = process.env.AI_IMAGE_CACHE_STRATEGY;
   delete process.env.AI_IMAGE_PROVIDER;
   delete process.env.AI_IMAGE_MODEL;
   delete process.env.AI_IMAGE_STYLE;
   delete process.env.AI_IMAGE_RESPONSE_FORMAT;
   delete process.env.AI_IMAGE_OUTPUT_FORMAT;
+  delete process.env.AI_IMAGE_CACHE_STRATEGY;
 
   const config = getImageConfig();
   assert.equal(config.provider, "openai");
@@ -22,12 +24,14 @@ test("image config defaults to real OpenAI image generation", () => {
   assert.equal(config.style, "realistic");
   assert.equal(config.responseFormat, "url");
   assert.equal(config.outputFormat, "png");
+  assert.equal(config.cacheStrategy, "fast-url");
 
   if (oldProvider) process.env.AI_IMAGE_PROVIDER = oldProvider;
   if (oldModel) process.env.AI_IMAGE_MODEL = oldModel;
   if (oldStyle) process.env.AI_IMAGE_STYLE = oldStyle;
   if (oldResponseFormat) process.env.AI_IMAGE_RESPONSE_FORMAT = oldResponseFormat;
   if (oldFormat) process.env.AI_IMAGE_OUTPUT_FORMAT = oldFormat;
+  if (oldCacheStrategy) process.env.AI_IMAGE_CACHE_STRATEGY = oldCacheStrategy;
 });
 
 test("mock image provider is disabled", () => {
@@ -71,6 +75,39 @@ test("custom provider appends image generation endpoint for v1 base urls", async
     assert.equal(requestBody.output_format, "png");
     assert.equal(result.provider, "custom");
     assert.equal(result.model, "GPT-image 2");
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("custom provider resolves uocode root to the v1 image generation endpoint", async () => {
+  const oldFetch = globalThis.fetch;
+  let requestedUrl = "";
+  globalThis.fetch = async (url) => {
+    requestedUrl = url;
+    return new Response(JSON.stringify({ data: [{ url: "https://cdn.example.com/image.png" }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    await generateCustomImage({
+      prompt: "A realistic photo of a medal on a podium.",
+      word: { word: "medal" },
+      meaning: "奖牌",
+      config: {
+        baseUrl: "https://www.uocode.com",
+        apiKey: "test-key",
+        model: "codex-gpt-image-2",
+        size: "1024x1024",
+        quality: "low",
+        responseFormat: "url",
+        outputFormat: "png",
+      },
+    });
+
+    assert.equal(requestedUrl, "https://www.uocode.com/v1/images/generations");
   } finally {
     globalThis.fetch = oldFetch;
   }

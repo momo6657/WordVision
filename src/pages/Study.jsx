@@ -17,6 +17,7 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
   const [selected, setSelected] = useState(null);
   const [result, setResult] = useState(null);
   const currentWord = sessionWords[index];
+  const nextWord = sessionWords[index + 1];
   const [options, setOptions] = useState([]);
   const [imageState, setImageState] = useState({ status: "idle", imageUrl: "", message: "" });
   const prefetchingIds = useRef(new Set());
@@ -121,6 +122,12 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
     requestImageForWord(currentWord, { force });
   };
 
+  const handleImageLoadError = () => {
+    if (!currentWord) return;
+    const expiredWord = { ...currentWord, imageUrl: "", imageStatus: "idle", imageProvider: "", imageModel: "" };
+    requestImageForWord(expiredWord, { force: false });
+  };
+
   if (!currentWord) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-8">
@@ -146,6 +153,13 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
     }
     setIndex((value) => value + 1);
   };
+
+  const nextImagePending = Boolean(
+    result &&
+      nextWord &&
+      !hasUsableImage(nextWord) &&
+      (nextWord.imageStatus === "loading" || prefetchingIds.current.has(nextWord.id)),
+  );
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
@@ -175,7 +189,7 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
 
             <div className="mt-6 grid aspect-[4/3] place-items-center overflow-hidden rounded-lg border border-dashed border-blue-300 bg-gradient-to-br from-blue-50 to-emerald-50 p-5 text-center dark:border-blue-800 dark:from-blue-950/40 dark:to-emerald-950/30">
               {imageState.imageUrl ? (
-                <img className="h-full w-full rounded-md object-cover" src={imageState.imageUrl} alt={currentWord.word} />
+                <img className="h-full w-full rounded-md object-cover" src={imageState.imageUrl} alt={currentWord.word} onError={handleImageLoadError} />
               ) : (
                 <div>
                   <p className="text-lg font-bold text-blue-700 dark:text-blue-200">
@@ -239,8 +253,8 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
                       加入重点复习
                     </button>
                   ) : null}
-                  <button className="btn-primary" onClick={handleNext}>
-                    {index + 1 >= sessionWords.length ? "查看本轮总结" : "下一个"}
+                  <button className="btn-primary" disabled={nextImagePending} onClick={handleNext}>
+                    {nextImagePending ? "下一张图准备中..." : index + 1 >= sessionWords.length ? "查看本轮总结" : "下一个"}
                   </button>
                 </div>
               </div>
