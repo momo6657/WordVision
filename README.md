@@ -6,6 +6,16 @@ WordVision 是一个基于 React + Vite + Tailwind CSS 的英语词汇学习 App
 
 WordVision 以“词库选择 -> 学习设置 -> 四选一学习 -> 总结复盘 -> 错题与统计”的学习闭环为主线，帮助用户完成一轮可追踪、可复习的词汇训练。
 
+## 在线访问说明
+
+线上演示地址：
+
+```text
+https://wordvision.vercel.app
+```
+
+当前演示站部署在 Vercel。由于 Vercel 在中国大陆网络下访问可能不稳定，国内网络访问该地址时可能需要开启 VPN 或代理；这属于部署平台和网络环境限制，不是项目功能故障。本地运行不受影响，可按下方安装运行方法启动。
+
 当前交付目标是一个本地运行的前端应用：
 
 - 使用 React 构建页面和组件。
@@ -175,6 +185,7 @@ WordVision/
 │  └─ images/
 │     └─ generate.js
 ├─ docs/
+│  ├─ CHINA_DEPLOYMENT_PLAN.md
 │  └─ VOCAB_SOURCE.md
 ├─ scripts/
 │  └─ import-ecdict.mjs
@@ -200,6 +211,11 @@ WordVision/
    │  ├─ Mistakes.jsx
    │  └─ Statistics.jsx
    ├─ data/
+   │  ├─ bookMeta.js
+   │  ├─ books/
+   │  │  ├─ cet4.js
+   │  │  ├─ cet6.js
+   │  │  └─ gaokao.js
    │  └─ words.js
    ├─ utils/
    │  ├─ storage.js
