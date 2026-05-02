@@ -9,6 +9,10 @@ import Study from "./pages/Study.jsx";
 import Summary from "./pages/Summary.jsx";
 import Mistakes from "./pages/Mistakes.jsx";
 import Statistics from "./pages/Statistics.jsx";
+import CustomWords from "./pages/CustomWords.jsx";
+import SceneLearning from "./pages/SceneLearning.jsx";
+import SpeakingPractice from "./pages/SpeakingPractice.jsx";
+import SentenceLab from "./pages/SentenceLab.jsx";
 import { bookMeta } from "./data/bookMeta.js";
 import {
   clearMistakeProgress,
@@ -19,13 +23,37 @@ import {
   saveState,
   booksToProgressItems,
 } from "./utils/storage.js";
-import { loadProgress, saveBookProgress } from "./utils/db.js";
+import {
+  loadCustomScenes,
+  loadCustomWords,
+  loadProgress,
+  loadSentenceRecords,
+  loadSpeakingRecords,
+  deleteProgressItems,
+  saveBookProgress,
+  saveCustomScenes,
+  saveCustomWords,
+  saveSentenceRecords,
+  saveSpeakingRecords,
+} from "./utils/db.js";
+import { createCustomWord } from "./utils/customWords.js";
 import { isDue, selectWordsForSession, updateReviewSchedule } from "./utils/quiz.js";
 
 const bookLoaders = {
   gaokao: () => import("./data/books/gaokao.js").then((module) => module.book),
   cet4: () => import("./data/books/cet4.js").then((module) => module.book),
   cet6: () => import("./data/books/cet6.js").then((module) => module.book),
+  kaoyan: () => import("./data/books/kaoyan.js").then((module) => module.book),
+  ielts: () => import("./data/books/ielts.js").then((module) => module.book),
+};
+
+const customBookMeta = {
+  id: "custom",
+  name: "自定义词汇",
+  description: "手动添加或批量导入的个人词汇，支持情景标签和 AI 视觉单词卡。",
+  level: "个人词库",
+  source: "IndexedDB",
+  license: "User Data",
 };
 
 const modeLabels = {
@@ -54,13 +82,20 @@ const summarizeProgress = (progress, bookId, totalCount) => {
   };
 };
 
-const createBookShells = (progress = {}) =>
-  bookMeta.map((book) => ({
+const createBookShells = (progress = {}, customWords = []) => [
+  ...bookMeta.map((book) => ({
     ...book,
     words: [],
     loaded: false,
     progressStats: summarizeProgress(progress, book.id, book.totalCount),
-  }));
+  })),
+  {
+    ...customBookMeta,
+    totalCount: customWords.length,
+    words: mergeBooksWithProgress([{ ...customBookMeta, words: customWords }], progress)[0].words,
+    loaded: true,
+  },
+];
 
 export default function App() {
   const [books, setBooks] = useState([]);
@@ -77,6 +112,9 @@ export default function App() {
   const [dataReady, setDataReady] = useState(false);
   const [savedProgress, setSavedProgress] = useState({});
   const [loadingBookId, setLoadingBookId] = useState("");
+  const [customScenes, setCustomScenes] = useState([]);
+  const [speakingRecords, setSpeakingRecords] = useState([]);
+  const [sentenceRecords, setSentenceRecords] = useState([]);
 
   const selectedBook = books.find((book) => book.id === selectedBookId) || books[0];
 
@@ -89,10 +127,19 @@ export default function App() {
         setRecords(initialState.records);
         setTheme(initialState.theme);
         setSelectedBookId(initialState.records.currentBookId || "cet4");
-        const progress = await loadProgress();
+        const [progress, customWords, scenes, speaking, sentences] = await Promise.all([
+          loadProgress(),
+          loadCustomWords(),
+          loadCustomScenes(),
+          loadSpeakingRecords(),
+          loadSentenceRecords(),
+        ]);
         if (!active) return;
         setSavedProgress(progress);
-        setBooks(createBookShells(progress));
+        setCustomScenes(scenes);
+        setSpeakingRecords(speaking);
+        setSentenceRecords(sentences);
+        setBooks(createBookShells(progress, customWords));
         setHydrated(true);
         setDataReady(true);
       })
@@ -120,9 +167,24 @@ export default function App() {
             book.words.map((word) => word.id),
             progressItems,
           ).catch((error) => console.warn("Failed to save IndexedDB progress:", error));
+          if (book.id === "custom") {
+            saveCustomWords(book.words).catch((error) => console.warn("Failed to save custom words:", error));
+          }
         });
     }
   }, [books, dataReady, hydrated, records, theme]);
+
+  useEffect(() => {
+    if (dataReady) saveCustomScenes(customScenes).catch((error) => console.warn("Failed to save custom scenes:", error));
+  }, [customScenes, dataReady]);
+
+  useEffect(() => {
+    if (dataReady) saveSpeakingRecords(speakingRecords).catch((error) => console.warn("Failed to save speaking records:", error));
+  }, [speakingRecords, dataReady]);
+
+  useEffect(() => {
+    if (dataReady) saveSentenceRecords(sentenceRecords).catch((error) => console.warn("Failed to save sentence records:", error));
+  }, [sentenceRecords, dataReady]);
 
   const navigate = async (nextView) => {
     if (nextView === "mistakes") await ensureBooksLoaded();
@@ -131,7 +193,7 @@ export default function App() {
   };
 
   const updateWord = (wordId, updater) => {
-    const targetBookId = bookMeta.find((book) => wordId.startsWith(`${book.id}-`))?.id;
+    const targetBookId = wordId.startsWith("custom-") ? "custom" : bookMeta.find((book) => wordId.startsWith(`${book.id}-`))?.id;
     setBooks((currentBooks) =>
       currentBooks.map((book) =>
         targetBookId && book.id !== targetBookId
@@ -148,6 +210,7 @@ export default function App() {
   const ensureBookLoaded = async (bookId) => {
     const current = books.find((book) => book.id === bookId);
     if (current?.words?.length) return current;
+    if (bookId === "custom" && current) return current;
 
     const loader = bookLoaders[bookId];
     if (!loader) throw new Error(`Unknown book: ${bookId}`);
@@ -164,7 +227,7 @@ export default function App() {
   };
 
   const ensureBooksLoaded = async () => {
-    const missingBooks = books.filter((book) => !book.words?.length);
+    const missingBooks = books.filter((book) => book.id !== "custom" && !book.words?.length);
     if (!missingBooks.length) return books;
 
     setLoadingBookId("all");
@@ -302,6 +365,54 @@ export default function App() {
     updateWord(wordId, (word) => ({ ...word, ...imageState }));
   };
 
+  const saveCustomWord = (input) => {
+    setBooks((currentBooks) =>
+      currentBooks.map((book) => {
+        if (book.id !== "custom") return book;
+        const existing = input.id
+          ? book.words.find((word) => word.id === input.id)
+          : book.words.find((word) => word.word.toLowerCase() === String(input.word || "").trim().toLowerCase());
+        const nextWord = createCustomWord(input, existing);
+        const words = existing ? book.words.map((word) => (word.id === existing.id ? nextWord : word)) : [nextWord, ...book.words];
+        return { ...book, words, totalCount: words.length };
+      }),
+    );
+  };
+
+  const importCustomWords = (rows) => {
+    setBooks((currentBooks) =>
+      currentBooks.map((book) => {
+        if (book.id !== "custom") return book;
+        const byWord = new Map(book.words.map((word) => [word.word.toLowerCase(), word]));
+        rows.forEach((row) => {
+          const key = String(row.word || "").trim().toLowerCase();
+          if (!key || !row.meaning) return;
+          byWord.set(key, createCustomWord(row, byWord.get(key)));
+        });
+        const words = [...byWord.values()].sort((left, right) => left.word.localeCompare(right.word));
+        return { ...book, words, totalCount: words.length };
+      }),
+    );
+  };
+
+  const deleteCustomWord = (wordId) => {
+    setBooks((currentBooks) =>
+      currentBooks.map((book) => (book.id === "custom" ? { ...book, words: book.words.filter((word) => word.id !== wordId), totalCount: Math.max(book.words.length - 1, 0) } : book)),
+    );
+    deleteProgressItems([wordId]).catch((error) => console.warn("Failed to delete custom word progress:", error));
+    setDetailWord((word) => (word?.id === wordId ? null : word));
+  };
+
+  const saveScene = (scene) => {
+    setCustomScenes((current) => {
+      const exists = current.some((item) => item.id === scene.id);
+      return exists ? current.map((item) => (item.id === scene.id ? scene : item)) : [...current, scene];
+    });
+  };
+
+  const addSpeakingRecord = (record) => setSpeakingRecords((current) => [...current, record].slice(-50));
+  const addSentenceRecord = (record) => setSentenceRecords((current) => [...current, record].slice(-50));
+
   const openMistakeReview = () => {
     const firstBookWithMistakes = books.find((book) => book.words.some((word) => word.wrongCount > 0));
     if (!firstBookWithMistakes) return;
@@ -339,6 +450,34 @@ export default function App() {
 
     if (view === "books") {
       return <BookSelect books={books} onOverview={openOverview} onStudy={openSettings} />;
+    }
+
+    if (view === "custom") {
+      const customBook = books.find((book) => book.id === "custom");
+      return (
+        <CustomWords
+          book={customBook}
+          onSaveWord={saveCustomWord}
+          onDeleteWord={deleteCustomWord}
+          onImportWords={importCustomWords}
+          onStartMode={openSettings}
+          onDetail={setDetailWord}
+          onToggleFavorite={toggleFavorite}
+          onSpeak={speak}
+        />
+      );
+    }
+
+    if (view === "scenes") {
+      return <SceneLearning scenes={customScenes} onSaveScene={saveScene} onAddWordsToCustom={importCustomWords} />;
+    }
+
+    if (view === "speaking") {
+      return <SpeakingPractice records={speakingRecords} onSaveRecord={addSpeakingRecord} onSpeak={speak} />;
+    }
+
+    if (view === "sentences") {
+      return <SentenceLab records={sentenceRecords} onSaveRecord={addSentenceRecord} />;
     }
 
     if (view === "overview") {

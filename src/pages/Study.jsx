@@ -45,6 +45,18 @@ export default function Study({ book, sessionWords, onAnswer, onFinish, onSpeak,
         bookId: book.id,
         wordId: word.id,
         force,
+        wordPayload:
+          word.source === "custom"
+            ? {
+                word: word.word,
+                meaning: word.meaning,
+                simpleMeaning: word.simpleMeaning,
+                definition: word.definition,
+                example: word.example,
+                scene: word.scene,
+                imagePrompt: word.imagePrompt,
+              }
+            : undefined,
       });
       const nextState = {
         imageUrl: payload.imageUrl,

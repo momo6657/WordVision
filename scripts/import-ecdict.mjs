@@ -38,6 +38,22 @@ const books = [
     level: "大学",
     description: "基于公开词典考试标签整理的大学英语六级词汇，适合 CET-6 备考。",
   },
+  {
+    id: "kaoyan",
+    tag: "ky",
+    category: "KAOYAN",
+    name: "考研词汇",
+    level: "研究生入学考试",
+    description: "基于公开词典考试标签整理的考研英语词汇，适合考研英语备考。",
+  },
+  {
+    id: "ielts",
+    tag: "ielts",
+    category: "IELTS",
+    name: "雅思词汇",
+    level: "留学考试",
+    description: "基于公开词典考试标签整理的雅思词汇，适合 IELTS 听说读写备考。",
+  },
 ];
 
 const ensureDir = (target) => fs.mkdirSync(target, { recursive: true });
@@ -221,7 +237,7 @@ const report = `# WordVision 词库来源报告\n\n` +
   `- 仓库：https://github.com/skywind3000/ECDICT\n` +
   `- 许可证：MIT License\n\n` +
   `## 导入规则\n\n` +
-  `- 使用 ECDICT 的考试标签筛选：高考=gk，四级=cet4，六级=cet6。\n` +
+  `- 使用 ECDICT 的考试标签筛选：高考=gk，四级=cet4，六级=cet6，考研=ky，雅思=ielts。\n` +
   `- 保留英文单词、音标、中文释义、英文释义、词性、词频、来源标签。\n` +
   `- 例句、中文例句、记忆提示和图片提示词使用模板生成，后续可通过 AI 批量优化。\n` +
   `- 本项目不宣称这些词表是官方考纲原始文件，而是公开词典标签整理基线。\n\n` +

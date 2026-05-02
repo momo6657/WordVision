@@ -1,8 +1,12 @@
-import { BarChart3, BookOpen, Home, ListX, Moon, Sun } from "lucide-react";
+import { BarChart3, BookOpen, Home, ListX, MessageCircle, Moon, PenLine, Sparkles, Sun } from "lucide-react";
 
 const navItems = [
   { view: "home", label: "首页", icon: Home },
   { view: "books", label: "词库", icon: BookOpen },
+  { view: "custom", label: "自定义", icon: PenLine },
+  { view: "scenes", label: "情景", icon: Sparkles },
+  { view: "speaking", label: "口语", icon: MessageCircle },
+  { view: "sentences", label: "长难句", icon: PenLine },
   { view: "mistakes", label: "错题本", icon: ListX },
   { view: "statistics", label: "统计", icon: BarChart3 },
 ];

@@ -2,11 +2,11 @@ const IMAGE_API_PATH = "/api/images/generate";
 const PROD_API_BASE_URL = import.meta.env.VITE_IMAGE_API_BASE_URL || "https://wordvision.vercel.app";
 const inFlightRequests = new Map();
 
-const postImageRequest = async (url, { bookId, wordId, force }) => {
+const postImageRequest = async (url, { bookId, wordId, force, wordPayload, imageKind }) => {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ bookId, wordId, force }),
+    body: JSON.stringify({ bookId, wordId, force, wordPayload, imageKind }),
   });
   const payload = await response.json().catch(() => ({}));
   return { response, payload };
@@ -18,11 +18,11 @@ const shouldRetryProductionApi = (response, payload) => {
   return response.ok && (!payload?.status || !payload?.imageUrl);
 };
 
-const requestImage = async ({ bookId, wordId, force }) => {
+const requestImage = async ({ bookId, wordId, force, wordPayload, imageKind }) => {
   try {
-    let result = await postImageRequest(IMAGE_API_PATH, { bookId, wordId, force });
+    let result = await postImageRequest(IMAGE_API_PATH, { bookId, wordId, force, wordPayload, imageKind });
     if (shouldRetryProductionApi(result.response, result.payload)) {
-      result = await postImageRequest(`${PROD_API_BASE_URL}${IMAGE_API_PATH}`, { bookId, wordId, force });
+      result = await postImageRequest(`${PROD_API_BASE_URL}${IMAGE_API_PATH}`, { bookId, wordId, force, wordPayload, imageKind });
     }
 
     const { response, payload } = result;
@@ -35,7 +35,7 @@ const requestImage = async ({ bookId, wordId, force }) => {
     return payload;
   } catch (error) {
     if (import.meta.env.DEV) {
-      const result = await postImageRequest(`${PROD_API_BASE_URL}${IMAGE_API_PATH}`, { bookId, wordId, force });
+      const result = await postImageRequest(`${PROD_API_BASE_URL}${IMAGE_API_PATH}`, { bookId, wordId, force, wordPayload, imageKind });
       if (!result.response.ok || result.payload.status === "error") {
         throw new Error(result.payload.message || `图片生成失败：${result.response.status}`);
       }
@@ -47,11 +47,11 @@ const requestImage = async ({ bookId, wordId, force }) => {
   }
 };
 
-export const generateWordImage = ({ bookId, wordId, force = false }) => {
-  const key = `${bookId}:${wordId}:${force ? "force" : "normal"}`;
+export const generateWordImage = ({ bookId, wordId, force = false, wordPayload, imageKind = "word" }) => {
+  const key = `${bookId}:${wordId}:${imageKind}:${force ? "force" : "normal"}`;
   if (!force && inFlightRequests.has(key)) return inFlightRequests.get(key);
 
-  const promise = requestImage({ bookId, wordId, force }).finally(() => {
+  const promise = requestImage({ bookId, wordId, force, wordPayload, imageKind }).finally(() => {
     inFlightRequests.delete(key);
   });
 

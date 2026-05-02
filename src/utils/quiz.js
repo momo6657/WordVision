@@ -7,6 +7,8 @@ export const shuffle = (items) => {
   return copy;
 };
 
+const fallbackMeanings = ["重要的", "发展", "交流", "机会", "挑战", "方法", "环境", "经验"];
+
 export const getBookStats = (book) => {
   if (!book.words?.length && book.progressStats) return book.progressStats;
   const total = book.words?.length || book.totalCount || 0;
@@ -73,6 +75,12 @@ export const createOptions = (book, currentWord) => {
       distractors.push(word.meaning);
       if (distractors.length >= 3) break;
     }
+  }
+  for (const label of fallbackMeanings) {
+    if (distractors.length >= 3) break;
+    if (used.has(label)) continue;
+    used.add(label);
+    distractors.push(label);
   }
 
   return shuffle([currentWord.meaning, ...distractors]).map((label, index) => ({

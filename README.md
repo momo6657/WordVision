@@ -24,12 +24,16 @@ https://wordvision.vercel.app
 - 使用 IndexedDB 保存单词级学习进度、图片缓存状态、收藏、错题和复习计划。
 - 使用 localStorage 保存主题、最近学习记录等轻量元数据。
 - 使用浏览器 Web Speech API 或本地音频资源提供单词发音能力。
-- 使用 Vercel Serverless API 生成 AI 单词图片，默认 OpenAI，可通过 provider adapter 替换为更经济的模型。
+- 使用 Vercel Serverless API 生成 AI 单词/情景图片，并提供情景、对话和长难句文本生成接口，可通过 provider adapter 替换模型。
 
 ## 功能介绍
 
 - 首页：展示应用入口、学习进度概览、快捷开始和主要功能导航。
 - 词库选择：支持选择不同词库或学习范围，例如基础词汇、考试词汇、自定义词表等。
+- 自定义词汇：支持手动添加、CSV/TSV 批量粘贴导入、编辑删除，并进入同一套学习流程。
+- 情景学习：支持生成餐厅点餐、课堂提问、旅行问路、天气交流等情景词汇组，并生成情景图片。
+- 口语练习：支持情景对话、浏览器朗读、语音识别跟读和相似度反馈；不支持语音识别时自动使用手动输入。
+- 长难句理解：支持输入英文长句，生成翻译、主干识别、结构拆解、重点词汇和练习题。
 - 词汇总览：展示当前词库中的单词、释义、掌握状态、收藏状态和学习记录。
 - 学习设置：支持设置学习数量、题目顺序、是否包含错题、是否自动发音、深色模式等偏好。
 - 四选一学习：以单词或释义为题干，提供四个选项，记录正确率和答题过程。
@@ -39,6 +43,7 @@ https://wordvision.vercel.app
 - localStorage：在本地浏览器保存主题、学习记录等轻量元数据。
 - IndexedDB：保存完整词库下的单词学习进度，避免把大词库整体写入 localStorage。
 - AI 图片：学习页按单词请求 `/api/images/generate`，服务端生成图片并缓存，前端不会暴露 API Key。
+- AI 文本：情景、口语对话和长难句页面通过 `/api/ai/*` 服务端接口生成结构化学习内容，前端不会暴露 API Key。
 - 间隔复习：答对后推迟下次复习，答错后进入近期复习队列。
 - 收藏：用户可收藏重点词汇，并在总览或复习中快速筛选。
 - 深色模式：支持明暗主题切换，并持久化用户选择。
@@ -156,6 +161,27 @@ BLOB_READ_WRITE_TOKEN=Vercel Blob 写入令牌
 - 生成图片会按 `bookId/wordId/provider/model/quality/size/promptHash` 写入 Vercel Blob，命中缓存时不会再次调用模型。未配置 `BLOB_READ_WRITE_TOKEN` 且 provider 返回 URL 时，服务端会直接把 URL 返回给前端，减少二次下载和 base64 传输延迟。
 - 学习页会在当前图片准备好后预生成后两个单词的图片，并把生成结果写入 IndexedDB；同一浏览器跨会话会直接复用已生成图片，生产环境则优先命中 Vercel Blob 跨设备缓存。
 
+### AI 文本接口
+
+新增文本接口用于情景学习、口语练习和长难句理解：
+
+```text
+POST /api/ai/scene
+POST /api/ai/dialogue
+POST /api/ai/sentence
+```
+
+可选环境变量：
+
+```text
+AI_TEXT_PROVIDER=openai | custom | local
+AI_TEXT_MODEL=gpt-4o-mini
+AI_TEXT_BASE_URL=https://api.openai.com/v1
+AI_TEXT_API_KEY=你的服务端密钥
+```
+
+如果没有配置文本模型 Key，接口会使用本地模板兜底，保证页面可演示、可保存、可继续学习。
+
 ## 词库来源
 
 当前完整词库由 `scripts/import-ecdict.mjs` 从 ECDICT 导入生成：
@@ -163,7 +189,9 @@ BLOB_READ_WRITE_TOKEN=Vercel Blob 写入令牌
 - 高考词汇：3671 词
 - 四级词汇：3846 词
 - 六级词汇：5406 词
-- 合计：12923 词
+- 考研词汇：4801 词
+- 雅思词汇：5040 词
+- 合计：22764 词
 
 ECDICT 是 MIT License 的公开英汉词典数据库。本项目使用其考试标签 `gk/cet4/cet6` 作为公开词库基线，不宣称这些词表是官方考纲原始文件。详细导入报告见 `docs/VOCAB_SOURCE.md`。
 
@@ -208,6 +236,10 @@ WordVision/
    │  ├─ StudySettings.jsx
    │  ├─ Study.jsx
    │  ├─ Summary.jsx
+   │  ├─ CustomWords.jsx
+   │  ├─ SceneLearning.jsx
+   │  ├─ SpeakingPractice.jsx
+   │  ├─ SentenceLab.jsx
    │  ├─ Mistakes.jsx
    │  └─ Statistics.jsx
    ├─ data/
@@ -215,10 +247,15 @@ WordVision/
    │  ├─ books/
    │  │  ├─ cet4.js
    │  │  ├─ cet6.js
+   │  │  ├─ ielts.js
+   │  │  ├─ kaoyan.js
    │  │  └─ gaokao.js
    │  └─ words.js
    ├─ utils/
+   │  ├─ aiApi.js
+   │  ├─ customWords.js
    │  ├─ storage.js
+   │  ├─ db.js
    │  └─ quiz.js
    └─ styles/
       └─ index.css

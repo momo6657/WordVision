@@ -8,6 +8,8 @@ const bookLoaders = {
   gaokao: () => import("../../src/data/books/gaokao.js").then((module) => module.book),
   cet4: () => import("../../src/data/books/cet4.js").then((module) => module.book),
   cet6: () => import("../../src/data/books/cet6.js").then((module) => module.book),
+  kaoyan: () => import("../../src/data/books/kaoyan.js").then((module) => module.book),
+  ielts: () => import("../../src/data/books/ielts.js").then((module) => module.book),
 };
 
 const counters = new Map();
@@ -24,6 +26,25 @@ const findWord = async (bookId, wordId) => {
   const book = loader ? await loader() : null;
   if (!book) return { book: null, word: null };
   return { book, word: book.words.find((item) => item.id === wordId) || null };
+};
+
+const cleanText = (value, max = 300) => String(value || "").replace(/\s+/g, " ").trim().slice(0, max);
+
+const wordFromPayload = (bookId, wordId, payload = {}) => {
+  const word = cleanText(payload.word || payload.title, 80);
+  const meaning = cleanText(payload.meaning || payload.description, 240);
+  if (!word || !meaning) return null;
+  return {
+    id: cleanText(wordId, 120) || `payload-${hashText(`${word}:${meaning}`)}`,
+    word,
+    meaning,
+    simpleMeaning: cleanText(payload.simpleMeaning || meaning, 120),
+    definition: cleanText(payload.definition, 360),
+    example: cleanText(payload.example, 360),
+    imagePrompt: cleanText(payload.imagePrompt || payload.scenePrompt, 800),
+    scene: cleanText(payload.scene, 240),
+    source: bookId === "scene" ? "scene" : "custom",
+  };
 };
 
 const toDataUrl = (bytes, mimeType) => `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
@@ -101,10 +122,12 @@ export default async function handler(req, res) {
     return jsonError(res, 405, "Only POST is supported.");
   }
 
-  const { bookId, wordId, force = false } = req.body || {};
+  const { bookId, wordId, force = false, wordPayload = null, imageKind = "word" } = req.body || {};
   if (!bookId || !wordId) return jsonError(res, 400, "bookId and wordId are required.");
 
-  const { book, word } = await findWord(bookId, wordId);
+  const payloadWord = wordPayload ? wordFromPayload(bookId, wordId, wordPayload) : null;
+  const { book, word: foundWord } = payloadWord ? { book: { id: bookId }, word: payloadWord } : await findWord(bookId, wordId);
+  const word = foundWord;
   if (!book || !word) return jsonError(res, 404, "Word not found.");
 
   const config = getImageConfig();
@@ -113,19 +136,32 @@ export default async function handler(req, res) {
     config.style === "anime"
       ? "high-quality anime scene"
       : "realistic photographic scene with natural lighting, real objects, and believable real-world composition";
-  const prompt = [
-    `Create one ${visualStyle} for an English vocabulary learning app.`,
-    "Depict the concrete object, action, emotion, or situation of the vocabulary word directly. For abstract words, show a clear real-world situation that represents the meaning.",
-    `Target vocabulary word: ${word.word}. Core meaning: ${meaning}.`,
-    word.definition ? `Dictionary context: ${word.definition}.` : "",
-    word.example ? `Example context: ${word.example}` : "",
-    "Do not use a generic fallback subject. Do not show a pig, car, animal, person, or object unless it directly matches the target word meaning.",
-    "The image must be a pictorial scene only: no letters, no words, no captions, no labels, no watermark, no UI, no spelling of the target word.",
-    "Avoid vector art, flat icons, diagrams, clipart, logos, or code-generated illustration styles. Output should be a normal bitmap image suitable for memory.",
-  ]
+  const prompt =
+    imageKind === "scene"
+      ? [
+          `Create one ${visualStyle} for an immersive English learning scene.`,
+          `Scene title: ${word.word}. Scene meaning/context: ${meaning}.`,
+          word.imagePrompt ? `Scene prompt: ${word.imagePrompt}.` : "",
+          "Show a clear real-world situation with objects and actions that help learners infer vocabulary from context.",
+          "The image must be pictorial only: no letters, no words, no captions, no labels, no watermark, no UI.",
+          "Avoid vector art, flat icons, diagrams, clipart, logos, or code-generated illustration styles. Output should be a normal bitmap image.",
+        ]
+      : [
+          `Create one ${visualStyle} for an English vocabulary learning app.`,
+          "Depict the concrete object, action, emotion, or situation of the vocabulary word directly. For abstract words, show a clear real-world situation that represents the meaning.",
+          `Target vocabulary word: ${word.word}. Core meaning: ${meaning}.`,
+          word.definition ? `Dictionary context: ${word.definition}.` : "",
+          word.example ? `Example context: ${word.example}` : "",
+          word.scene ? `Learning scene: ${word.scene}.` : "",
+          word.imagePrompt ? `User image prompt: ${word.imagePrompt}.` : "",
+          "Do not use a generic fallback subject. Do not show a pig, car, animal, person, or object unless it directly matches the target word meaning.",
+          "The image must be a pictorial scene only: no letters, no words, no captions, no labels, no watermark, no UI, no spelling of the target word.",
+          "Avoid vector art, flat icons, diagrams, clipart, logos, or code-generated illustration styles. Output should be a normal bitmap image suitable for memory.",
+        ];
+  const promptText = prompt
     .filter(Boolean)
     .join(" ");
-  const prefix = getCachePrefix(bookId, word, config, prompt);
+  const prefix = getCachePrefix(bookId, word, config, promptText);
 
   try {
     if (!force) {
@@ -174,7 +210,7 @@ export default async function handler(req, res) {
         throw error;
       }
 
-      const generated = await provider.generateImage({ prompt, word, meaning, config });
+      const generated = await provider.generateImage({ prompt: promptText, word, meaning, config });
       const mimeType = generated.mimeType || "image/png";
 
       if (generated.imageUrl && !process.env.BLOB_READ_WRITE_TOKEN) {

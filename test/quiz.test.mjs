@@ -19,6 +19,14 @@ test("createOptions returns one correct answer and unique labels", () => {
   assert.equal(new Set(options.map((option) => option.label)).size, 4);
 });
 
+test("createOptions pads tiny custom books to four choices", () => {
+  const tinyBook = { id: "custom", words: [{ id: "custom-alpha", word: "alpha", meaning: "第一" }] };
+  const options = createOptions(tinyBook, tinyBook.words[0]);
+  assert.equal(options.length, 4);
+  assert.equal(options.filter((option) => option.isCorrect).length, 1);
+  assert.equal(new Set(options.map((option) => option.label)).size, 4);
+});
+
 test("selectWordsForSession supports due and favorite modes", () => {
   assert.deepEqual(selectWordsForSession(book, { mode: "due", count: "all", order: "ordered" }).map((word) => word.id), ["w2"]);
   assert.deepEqual(selectWordsForSession(book, { mode: "favorite", count: "all", order: "ordered" }).map((word) => word.id), ["w2"]);
