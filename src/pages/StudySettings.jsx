@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { getBookStats, selectWordsForSession } from "../utils/quiz.js";
+import { countWordsForSession, getBookStats } from "../utils/quiz.js";
 
 const modes = [
   { id: "due", label: "今日应复习" },
@@ -17,7 +17,8 @@ export default function StudySettings({ book, initialMode = "unlearned", onStart
   const [count, setCount] = useState("10");
   const [order, setOrder] = useState("random");
   const stats = getBookStats(book);
-  const preview = useMemo(() => selectWordsForSession(book, { mode, count, order }), [book, count, mode, order]);
+  const availableCount = useMemo(() => countWordsForSession(book, mode), [book, mode]);
+  const previewCount = count === "all" ? availableCount : Math.min(Number(count), availableCount);
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
@@ -83,11 +84,11 @@ export default function StudySettings({ book, initialMode = "unlearned", onStart
         </section>
 
         <div className="mt-6 rounded-lg bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          本轮预计学习 <strong className="text-slate-900 dark:text-white">{preview.length}</strong> 个单词。
+          本轮预计学习 <strong className="text-slate-900 dark:text-white">{previewCount}</strong> 个单词。
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <button className="btn-primary" disabled={!preview.length} onClick={() => onStart({ mode, count, order })}>
+          <button className="btn-primary" disabled={!previewCount} onClick={() => onStart({ mode, count, order })}>
             开始本轮学习
           </button>
           <button className="btn-secondary" onClick={onBack}>

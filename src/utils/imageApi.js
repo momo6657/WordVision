@@ -1,5 +1,5 @@
 const IMAGE_API_PATH = "/api/images/generate";
-const PROD_API_BASE_URL = "https://wordvision.vercel.app";
+const PROD_API_BASE_URL = import.meta.env.VITE_IMAGE_API_BASE_URL || "https://wordvision.vercel.app";
 const inFlightRequests = new Map();
 
 const postImageRequest = async (url, { bookId, wordId, force }) => {

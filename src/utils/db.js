@@ -60,6 +60,14 @@ export const saveProgress = async (progressItems) =>
     progressItems.forEach((item) => store.put(item));
   });
 
+export const saveBookProgress = async (bookId, wordIds, progressItems) =>
+  withStore("readwrite", (store) => {
+    wordIds.forEach((wordId) => store.delete(wordId));
+    progressItems
+      .filter((item) => item.bookId === bookId)
+      .forEach((item) => store.put(item));
+  });
+
 export const clearBookProgress = async (wordIds) =>
   withStore("readwrite", (store) => {
     wordIds.forEach((wordId) => store.delete(wordId));

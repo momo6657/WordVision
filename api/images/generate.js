@@ -1,9 +1,14 @@
 import crypto from "node:crypto";
 import { waitUntil } from "@vercel/functions";
 import { del, list, put } from "@vercel/blob";
-import { wordBooks } from "../../src/data/words.js";
 import { getImageConfig, jsonError } from "../_lib/images/config.js";
 import { getProvider } from "../_lib/images/providers/index.js";
+
+const bookLoaders = {
+  gaokao: () => import("../../src/data/books/gaokao.js").then((module) => module.book),
+  cet4: () => import("../../src/data/books/cet4.js").then((module) => module.book),
+  cet6: () => import("../../src/data/books/cet6.js").then((module) => module.book),
+};
 
 const counters = new Map();
 const inFlightGenerations = globalThis.__wordvisionImageGenerations || new Map();
@@ -14,8 +19,9 @@ const RECENT_IMAGE_TTL_MS = 10 * 60 * 1000;
 
 const hashText = (value) => crypto.createHash("sha256").update(value).digest("hex").slice(0, 16);
 
-const findWord = (bookId, wordId) => {
-  const book = wordBooks.find((item) => item.id === bookId);
+const findWord = async (bookId, wordId) => {
+  const loader = bookLoaders[bookId];
+  const book = loader ? await loader() : null;
   if (!book) return { book: null, word: null };
   return { book, word: book.words.find((item) => item.id === wordId) || null };
 };
@@ -98,7 +104,7 @@ export default async function handler(req, res) {
   const { bookId, wordId, force = false } = req.body || {};
   if (!bookId || !wordId) return jsonError(res, 400, "bookId and wordId are required.");
 
-  const { book, word } = findWord(bookId, wordId);
+  const { book, word } = await findWord(bookId, wordId);
   if (!book || !word) return jsonError(res, 404, "Word not found.");
 
   const config = getImageConfig();

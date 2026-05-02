@@ -21,8 +21,9 @@ export default function WordOverview({ book, onStartMode, onReset, onDetail, onT
   const stats = getBookStats(book);
 
   const visibleWords = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
     return book.words.filter((word) => {
-      const matchesQuery = word.word.toLowerCase().includes(query.trim().toLowerCase());
+      const matchesQuery = word.word.toLowerCase().includes(normalizedQuery);
       const matchesFilter =
         filter === "all" ||
         (filter === "unlearned" && !word.learned) ||

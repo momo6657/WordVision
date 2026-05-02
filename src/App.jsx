@@ -9,6 +9,7 @@ import Study from "./pages/Study.jsx";
 import Summary from "./pages/Summary.jsx";
 import Mistakes from "./pages/Mistakes.jsx";
 import Statistics from "./pages/Statistics.jsx";
+import { bookMeta } from "./data/bookMeta.js";
 import {
   clearMistakeProgress,
   createInitialRecords,
@@ -18,8 +19,14 @@ import {
   saveState,
   booksToProgressItems,
 } from "./utils/storage.js";
-import { loadProgress, saveProgress } from "./utils/db.js";
-import { selectWordsForSession, updateReviewSchedule } from "./utils/quiz.js";
+import { loadProgress, saveBookProgress } from "./utils/db.js";
+import { isDue, selectWordsForSession, updateReviewSchedule } from "./utils/quiz.js";
+
+const bookLoaders = {
+  gaokao: () => import("./data/books/gaokao.js").then((module) => module.book),
+  cet4: () => import("./data/books/cet4.js").then((module) => module.book),
+  cet6: () => import("./data/books/cet6.js").then((module) => module.book),
+};
 
 const modeLabels = {
   due: "今日应复习",
@@ -29,6 +36,31 @@ const modeLabels = {
   all: "随机练习全部单词",
   learned: "重新学习已学会单词",
 };
+
+const summarizeProgress = (progress, bookId, totalCount) => {
+  const items = Object.values(progress || {}).filter((item) => item.bookId === bookId);
+  const learned = items.filter((item) => item.learned).length;
+  const wrong = items.filter((item) => Number(item.wrongCount) > 0).length;
+  const due = items.filter((item) => isDue(item)).length;
+  const favorite = items.filter((item) => item.favorite).length;
+  return {
+    total: totalCount,
+    learned,
+    unlearned: Math.max(totalCount - learned, 0),
+    wrong,
+    due,
+    favorite,
+    progress: totalCount ? Math.round((learned / totalCount) * 100) : 0,
+  };
+};
+
+const createBookShells = (progress = {}) =>
+  bookMeta.map((book) => ({
+    ...book,
+    words: [],
+    loaded: false,
+    progressStats: summarizeProgress(progress, book.id, book.totalCount),
+  }));
 
 export default function App() {
   const [books, setBooks] = useState([]);
@@ -43,24 +75,24 @@ export default function App() {
   const [detailWord, setDetailWord] = useState(null);
   const [hydrated, setHydrated] = useState(false);
   const [dataReady, setDataReady] = useState(false);
+  const [savedProgress, setSavedProgress] = useState({});
+  const [loadingBookId, setLoadingBookId] = useState("");
 
   const selectedBook = books.find((book) => book.id === selectedBookId) || books[0];
 
   useEffect(() => {
     let active = true;
-    import("./data/words.js")
-      .then(async ({ wordBooks }) => {
+    Promise.resolve()
+      .then(async () => {
         if (!active) return;
-        const initialState = loadState(wordBooks);
-        setBooks(initialState.books);
+        const initialState = loadState(createBookShells());
         setRecords(initialState.records);
         setTheme(initialState.theme);
         setSelectedBookId(initialState.records.currentBookId || "cet4");
         const progress = await loadProgress();
         if (!active) return;
-        if (Object.keys(progress).length) {
-          setBooks(mergeBooksWithProgress(wordBooks, progress));
-        }
+        setSavedProgress(progress);
+        setBooks(createBookShells(progress));
         setHydrated(true);
         setDataReady(true);
       })
@@ -79,23 +111,78 @@ export default function App() {
     if (!dataReady) return;
     saveState({ records, theme });
     if (hydrated) {
-      saveProgress(booksToProgressItems(books)).catch((error) => console.warn("Failed to save IndexedDB progress:", error));
+      books
+        .filter((book) => book.words?.length)
+        .forEach((book) => {
+          const progressItems = booksToProgressItems([book]);
+          saveBookProgress(
+            book.id,
+            book.words.map((word) => word.id),
+            progressItems,
+          ).catch((error) => console.warn("Failed to save IndexedDB progress:", error));
+        });
     }
   }, [books, dataReady, hydrated, records, theme]);
 
-  const navigate = (nextView) => {
+  const navigate = async (nextView) => {
+    if (nextView === "mistakes") await ensureBooksLoaded();
     setView(nextView);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const updateWord = (wordId, updater) => {
+    const targetBookId = bookMeta.find((book) => wordId.startsWith(`${book.id}-`))?.id;
     setBooks((currentBooks) =>
-      currentBooks.map((book) => ({
-        ...book,
-        words: book.words.map((word) => (word.id === wordId ? updater(word) : word)),
-      })),
+      currentBooks.map((book) =>
+        targetBookId && book.id !== targetBookId
+          ? book
+          : {
+              ...book,
+              words: book.words.map((word) => (word.id === wordId ? updater(word) : word)),
+            },
+      ),
     );
     setSessionWords((currentWords) => currentWords.map((word) => (word.id === wordId ? updater(word) : word)));
+  };
+
+  const ensureBookLoaded = async (bookId) => {
+    const current = books.find((book) => book.id === bookId);
+    if (current?.words?.length) return current;
+
+    const loader = bookLoaders[bookId];
+    if (!loader) throw new Error(`Unknown book: ${bookId}`);
+    setLoadingBookId(bookId);
+    const rawBook = await loader();
+    const mergedBook = {
+      ...mergeBooksWithProgress([rawBook], savedProgress)[0],
+      loaded: true,
+      totalCount: rawBook.words.length,
+    };
+    setBooks((currentBooks) => currentBooks.map((book) => (book.id === bookId ? mergedBook : book)));
+    setLoadingBookId("");
+    return mergedBook;
+  };
+
+  const ensureBooksLoaded = async () => {
+    const missingBooks = books.filter((book) => !book.words?.length);
+    if (!missingBooks.length) return books;
+
+    setLoadingBookId("all");
+    const loadedBooks = await Promise.all(
+      missingBooks.map(async (book) => {
+        const rawBook = await bookLoaders[book.id]();
+        return {
+          ...mergeBooksWithProgress([rawBook], savedProgress)[0],
+          loaded: true,
+          totalCount: rawBook.words.length,
+        };
+      }),
+    );
+    const loadedById = new Map(loadedBooks.map((book) => [book.id, book]));
+    const nextBooks = books.map((book) => loadedById.get(book.id) || book);
+    setBooks(nextBooks);
+    setLoadingBookId("");
+    return nextBooks;
   };
 
   const speak = (text) => {
@@ -107,21 +194,23 @@ export default function App() {
     window.speechSynthesis.speak(utterance);
   };
 
-  const openOverview = (bookId) => {
+  const openOverview = async (bookId) => {
     setSelectedBookId(bookId);
     setRecords((current) => ({ ...current, currentBookId: bookId }));
+    await ensureBookLoaded(bookId);
     navigate("overview");
   };
 
-  const openSettings = (bookId, mode = "unlearned") => {
+  const openSettings = async (bookId, mode = "unlearned") => {
     setSelectedBookId(bookId);
     setInitialMode(mode);
     setRecords((current) => ({ ...current, currentBookId: bookId }));
+    await ensureBookLoaded(bookId);
     navigate("settings");
   };
 
-  const startSession = (config) => {
-    const book = books.find((item) => item.id === selectedBookId);
+  const startSession = async (config) => {
+    const book = await ensureBookLoaded(selectedBookId);
     const words = selectWordsForSession(book, config);
     setSessionWords(words);
     setSessionMeta({
@@ -231,6 +320,18 @@ export default function App() {
           <div className="panel p-8 text-center">
             <h1 className="text-2xl font-black">正在加载完整词库</h1>
             <p className="mt-2 text-slate-600 dark:text-slate-300">首次加载会读取高考、四级和六级完整词库。</p>
+          </div>
+        </main>
+      );
+    }
+
+    if (loadingBookId) {
+      const loadingBook = books.find((book) => book.id === loadingBookId);
+      return (
+        <main className="mx-auto max-w-3xl px-4 py-16">
+          <div className="panel p-8 text-center">
+            <h1 className="text-2xl font-black">正在加载{loadingBookId === "all" ? "全部词库" : loadingBook?.name || "词库"}</h1>
+            <p className="mt-2 text-slate-600 dark:text-slate-300">已按词库拆分加载，稍后进入学习页面。</p>
           </div>
         </main>
       );

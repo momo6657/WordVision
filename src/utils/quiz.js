@@ -8,11 +8,18 @@ export const shuffle = (items) => {
 };
 
 export const getBookStats = (book) => {
-  const total = book.words.length;
-  const learned = book.words.filter((word) => word.learned).length;
-  const wrong = book.words.filter((word) => word.wrongCount > 0).length;
-  const due = book.words.filter((word) => isDue(word)).length;
-  const favorite = book.words.filter((word) => word.favorite).length;
+  if (!book.words?.length && book.progressStats) return book.progressStats;
+  const total = book.words?.length || book.totalCount || 0;
+  let learned = 0;
+  let wrong = 0;
+  let due = 0;
+  let favorite = 0;
+  for (const word of book.words || []) {
+    if (word.learned) learned += 1;
+    if (word.wrongCount > 0) wrong += 1;
+    if (isDue(word)) due += 1;
+    if (word.favorite) favorite += 1;
+  }
   return {
     total,
     learned,
@@ -25,11 +32,12 @@ export const getBookStats = (book) => {
 };
 
 export const getAllStats = (books, records) => {
-  const totalWords = books.reduce((sum, book) => sum + book.words.length, 0);
-  const learned = books.reduce((sum, book) => sum + book.words.filter((word) => word.learned).length, 0);
-  const wrongWords = books.reduce((sum, book) => sum + book.words.filter((word) => word.wrongCount > 0).length, 0);
-  const dueWords = books.reduce((sum, book) => sum + book.words.filter((word) => isDue(word)).length, 0);
-  const favoriteWords = books.reduce((sum, book) => sum + book.words.filter((word) => word.favorite).length, 0);
+  const bookStats = books.map((book) => getBookStats(book));
+  const totalWords = bookStats.reduce((sum, stats) => sum + stats.total, 0);
+  const learned = bookStats.reduce((sum, stats) => sum + stats.learned, 0);
+  const wrongWords = bookStats.reduce((sum, stats) => sum + stats.wrong, 0);
+  const dueWords = bookStats.reduce((sum, stats) => sum + stats.due, 0);
+  const favoriteWords = bookStats.reduce((sum, stats) => sum + stats.favorite, 0);
   return {
     totalWords,
     learned,
@@ -45,17 +53,41 @@ export const getAllStats = (books, records) => {
 };
 
 export const createOptions = (book, currentWord) => {
-  const distractors = shuffle(
-    book.words
-      .filter((word) => word.id !== currentWord.id && word.meaning !== currentWord.meaning)
-      .map((word) => word.meaning),
-  ).slice(0, 3);
+  const distractors = [];
+  const used = new Set([currentWord.meaning]);
+  const maxAttempts = Math.min(book.words.length * 3, 200);
+  let attempts = 0;
+
+  while (distractors.length < 3 && attempts < maxAttempts) {
+    attempts += 1;
+    const candidate = book.words[Math.floor(Math.random() * book.words.length)];
+    if (!candidate || candidate.id === currentWord.id || used.has(candidate.meaning)) continue;
+    used.add(candidate.meaning);
+    distractors.push(candidate.meaning);
+  }
+
+  if (distractors.length < 3) {
+    for (const word of book.words) {
+      if (word.id === currentWord.id || used.has(word.meaning)) continue;
+      used.add(word.meaning);
+      distractors.push(word.meaning);
+      if (distractors.length >= 3) break;
+    }
+  }
 
   return shuffle([currentWord.meaning, ...distractors]).map((label, index) => ({
     id: `${currentWord.id}-option-${index}`,
     label,
     isCorrect: label === currentWord.meaning,
   }));
+};
+
+export const countWordsForSession = (book, mode) => {
+  if (mode === "due") return book.words.filter((word) => isDue(word)).length;
+  if (mode === "wrong") return book.words.filter((word) => word.wrongCount > 0).length;
+  if (mode === "favorite") return book.words.filter((word) => word.favorite).length;
+  if (mode === "learned") return book.words.filter((word) => word.learned).length;
+  return mode === "all" ? book.words.length : book.words.filter((word) => !word.learned).length;
 };
 
 export const selectWordsForSession = (book, config) => {
