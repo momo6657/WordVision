@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import sentenceHandler from "../api/ai/sentence.js";
-import { getTextConfig, parseJSON } from "../api/_lib/ai/text.js";
+import { callTextModel, getTextConfig, parseJSON } from "../api/_lib/ai/text.js";
 
 const callHandler = (handler, { method = "POST", body = {} } = {}) =>
   new Promise((resolve) => {
@@ -70,7 +70,7 @@ test("local sentence analysis handles infinitive complements", async () => {
   assert.ok(!result.payload.analysis.exercises.some((item) => item.question.includes("after")));
 });
 
-test("text AI config can reuse the configured image API channel", () => {
+test("text AI config is separate from image generation config", () => {
   const oldValues = {
     AI_TEXT_PROVIDER: process.env.AI_TEXT_PROVIDER,
     AI_TEXT_MODEL: process.env.AI_TEXT_MODEL,
@@ -93,9 +93,9 @@ test("text AI config can reuse the configured image API channel", () => {
   try {
     const config = getTextConfig();
     assert.equal(config.provider, "custom");
-    assert.equal(config.model, "codex-gpt-image-2");
-    assert.equal(config.baseUrl, "https://www.uocode.com/v1");
-    assert.equal(config.apiKey, "test-key");
+    assert.equal(config.model, "claude-opus-4-7-standard");
+    assert.equal(config.baseUrl, "https://api.vip.crond.dev/v1");
+    assert.equal(config.apiKey, "");
   } finally {
     for (const [key, value] of Object.entries(oldValues)) {
       if (value === undefined) delete process.env[key];
@@ -108,4 +108,47 @@ test("parseJSON extracts fenced provider responses", () => {
   const parsed = parseJSON('Here is the result:\\n```json\\n{"translation":"我昨天买的那本书很有趣。","mainStructure":{"subject":"The book","predicate":"is","object":"interesting"}}\\n```\\nExtra text');
   assert.equal(parsed.translation, "我昨天买的那本书很有趣。");
   assert.equal(parsed.mainStructure.predicate, "is");
+});
+
+test("text AI calls are de-duplicated for identical concurrent requests", async () => {
+  const oldValues = {
+    AI_TEXT_PROVIDER: process.env.AI_TEXT_PROVIDER,
+    AI_TEXT_MODEL: process.env.AI_TEXT_MODEL,
+    AI_TEXT_BASE_URL: process.env.AI_TEXT_BASE_URL,
+    AI_TEXT_API_KEY: process.env.AI_TEXT_API_KEY,
+    AI_TEXT_RESPONSE_FORMAT: process.env.AI_TEXT_RESPONSE_FORMAT,
+  };
+  const oldFetch = globalThis.fetch;
+  let calls = 0;
+  process.env.AI_TEXT_PROVIDER = "custom";
+  process.env.AI_TEXT_MODEL = "claude-opus-4-7-standard";
+  process.env.AI_TEXT_BASE_URL = "https://api.vip.crond.dev";
+  process.env.AI_TEXT_API_KEY = "test-key";
+  process.env.AI_TEXT_RESPONSE_FORMAT = "none";
+  globalThis.fetch = async (url, init) => {
+    calls += 1;
+    assert.equal(url, "https://api.vip.crond.dev/v1/chat/completions");
+    const body = JSON.parse(init.body);
+    assert.equal(body.model, "claude-opus-4-7-standard");
+    return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    const [first, second] = await Promise.all([
+      callTextModel({ system: "test", user: "same", schemaHint: "{}" }),
+      callTextModel({ system: "test", user: "same", schemaHint: "{}" }),
+    ]);
+    assert.deepEqual(first, { ok: true });
+    assert.deepEqual(second, { ok: true });
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = oldFetch;
+    for (const [key, value] of Object.entries(oldValues)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });
