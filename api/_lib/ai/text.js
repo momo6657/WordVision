@@ -1,6 +1,6 @@
 export const getTextConfig = () => ({
   provider: process.env.AI_TEXT_PROVIDER || "custom",
-  model: process.env.AI_TEXT_MODEL || "claude-opus-4-7-standard",
+  model: process.env.AI_TEXT_MODEL || "gpt-oss-120b",
   baseUrl: process.env.AI_TEXT_BASE_URL || "https://api.vip.crond.dev/v1",
   apiKey: process.env.AI_TEXT_API_KEY || process.env.OPENAI_API_KEY || "",
 });

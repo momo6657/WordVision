@@ -95,7 +95,7 @@ test("text AI config is separate from image generation config", () => {
   try {
     const config = getTextConfig();
     assert.equal(config.provider, "custom");
-    assert.equal(config.model, "claude-opus-4-7-standard");
+    assert.equal(config.model, "gpt-oss-120b");
     assert.equal(config.baseUrl, "https://api.vip.crond.dev/v1");
     assert.equal(config.apiKey, "");
   } finally {
@@ -123,7 +123,7 @@ test("text AI calls are de-duplicated for identical concurrent requests", async 
   const oldFetch = globalThis.fetch;
   let calls = 0;
   process.env.AI_TEXT_PROVIDER = "custom";
-  process.env.AI_TEXT_MODEL = "claude-opus-4-7-standard";
+  process.env.AI_TEXT_MODEL = "gpt-oss-120b";
   process.env.AI_TEXT_BASE_URL = "https://api.vip.crond.dev";
   process.env.AI_TEXT_API_KEY = "test-key";
   process.env.AI_TEXT_RESPONSE_FORMAT = "none";
@@ -131,7 +131,7 @@ test("text AI calls are de-duplicated for identical concurrent requests", async 
     calls += 1;
     assert.equal(url, "https://api.vip.crond.dev/v1/chat/completions");
     const body = JSON.parse(init.body);
-    assert.equal(body.model, "claude-opus-4-7-standard");
+    assert.equal(body.model, "gpt-oss-120b");
     return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }] }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -164,11 +164,11 @@ test("scene and dialogue APIs do not silently return template fallback when text
   };
   const oldFetch = globalThis.fetch;
   process.env.AI_TEXT_PROVIDER = "custom";
-  process.env.AI_TEXT_MODEL = "claude-opus-4-7-standard";
+  process.env.AI_TEXT_MODEL = "gpt-oss-120b";
   process.env.AI_TEXT_BASE_URL = "https://api.vip.crond.dev";
   process.env.AI_TEXT_API_KEY = "test-key";
   globalThis.fetch = async () =>
-    new Response(JSON.stringify({ error: { message: "No available channel for model claude-opus-4-7-standard" } }), {
+    new Response(JSON.stringify({ error: { message: "Text model provider unavailable" } }), {
       status: 503,
       headers: { "Content-Type": "application/json" },
     });
