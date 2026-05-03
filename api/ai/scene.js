@@ -31,6 +31,11 @@ const fallbackScene = ({ scene, wordCount }) => {
 };
 
 export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(204).end();
+
   if (req.method !== "POST") return jsonError(res, 405, "Only POST is supported.");
   const { scene = "校园生活", level = "中级", wordCount = 10, style = "realistic" } = req.body || {};
   const count = clampNumber(wordCount, 8, 20, 10);
