@@ -7,10 +7,52 @@ const linkingVerbs = new Set(["seem", "seems", "seemed", "appear", "appears", "a
 const auxiliaries = new Set(["do", "does", "did", "have", "has", "had", "will", "would", "can", "could", "may", "might", "must", "should", "shall"]);
 const subordinateMarkers = new Set(["after", "before", "although", "because", "when", "while", "if", "unless", "since", "where", "whereas", "that", "which", "who", "whom", "whose"]);
 const prepositions = new Set(["at", "in", "on", "for", "with", "without", "by", "to", "from", "of", "about", "into", "over", "under", "during", "through", "after", "before"]);
-const commonVerbs = new Set(["understood", "understand", "broke", "break", "seemed", "seem", "looked", "look", "made", "make", "gave", "give", "took", "take", "found", "find", "helped", "help", "learned", "learn", "explained", "explain"]);
+const commonVerbs = new Set([
+  "want",
+  "wants",
+  "wanted",
+  "love",
+  "loves",
+  "loved",
+  "need",
+  "needs",
+  "needed",
+  "try",
+  "tries",
+  "tried",
+  "plan",
+  "plans",
+  "planned",
+  "understood",
+  "understand",
+  "broke",
+  "break",
+  "seemed",
+  "seem",
+  "looked",
+  "look",
+  "made",
+  "make",
+  "gave",
+  "give",
+  "took",
+  "take",
+  "found",
+  "find",
+  "helped",
+  "help",
+  "learned",
+  "learn",
+  "explained",
+  "explain",
+]);
 
 const dictionary = {
   although: "虽然",
+  want: "想要",
+  love: "爱；喜爱",
+  your: "你的",
+  mother: "母亲",
   the: "定冠词",
   task: "任务",
   seemed: "似乎",
@@ -29,6 +71,7 @@ const dictionary = {
 };
 
 const translations = [
+  { pattern: /^i want to love your mother\.?$/i, value: "我想爱你的母亲。" },
   { pattern: /the task seemed difficult at first,?\s+the students gradually understood the structure after the teacher broke it down/i, value: "这项任务起初看起来很难，但老师把它拆解后，学生们逐渐理解了其中的结构。" },
   { pattern: /although the task seemed difficult at first,?\s+the students gradually understood the structure after the teacher broke it down/i, value: "虽然这项任务起初看起来很难，但在老师把它拆解后，学生们逐渐理解了其中的结构。" },
 ];
@@ -96,13 +139,16 @@ const parseClause = (text) => {
     prePredicateAdverbs.unshift(subjectTokens.pop());
   }
   const subject = cleanText(subjectTokens.join(" "));
-  const predicate = tokens[predicateIndex];
-  const tail = tokens.slice(predicateIndex + 1);
+  const predicateHead = tokens[predicateIndex];
+  const rawTail = tokens.slice(predicateIndex + 1);
+  const hasInfinitivePredicate = rawTail[0]?.toLowerCase() === "to" && isVerbLike(rawTail[1] || "");
+  const predicate = hasInfinitivePredicate ? `${predicateHead} to ${rawTail[1]}` : predicateHead;
+  const tail = hasInfinitivePredicate ? rawTail.slice(2) : rawTail;
   const subIndexInTail = splitAtSubordinate(tail);
   const mainTail = subIndexInTail >= 0 ? tail.slice(0, subIndexInTail) : tail;
   const subordinateTail = subIndexInTail >= 0 ? tail.slice(subIndexInTail) : [];
-  const predicateLower = predicate.toLowerCase();
-  const firstPrepIndex = mainTail.findIndex((token) => prepositions.has(token.toLowerCase()));
+  const predicateLower = predicateHead.toLowerCase();
+  const firstPrepIndex = mainTail.findIndex((token, index) => index > 0 && prepositions.has(token.toLowerCase()));
   const isLinking = beVerbs.has(predicateLower) || linkingVerbs.has(predicateLower);
   const coreTail = firstPrepIndex >= 0 ? mainTail.slice(0, firstPrepIndex) : mainTail;
   const adverbialTail = firstPrepIndex >= 0 ? mainTail.slice(firstPrepIndex) : [];
@@ -152,6 +198,96 @@ const keyWordsFor = (tokens) => {
     .map((word) => ({ word, meaning: dictionary[word] || "重点词/短语" }));
 };
 
+const exercisesFor = (sentence, mainClause) => {
+  const lower = sentence.toLowerCase();
+  const exercises = [
+    {
+      type: "main-structure",
+      question: "这句话的主干是什么？",
+      answer: `${mainClause.subject} ${mainClause.predicate} ${mainClause.object || mainClause.complement}`.trim(),
+    },
+    { type: "translation", question: "请写出这句话的中文大意。", answer: translateSentence(sentence) },
+  ];
+  if (lower.includes(" after ")) {
+    exercises.push({ type: "clause", question: "after 引导的部分在句中作什么成分？", answer: "时间状语从句" });
+  }
+  if (lower.includes("although ")) {
+    exercises.push({ type: "clause", question: "although 引导的部分表达什么逻辑关系？", answer: "让步关系，通常译为“虽然/尽管”。" });
+  }
+  if (/\bto\s+[a-z]+/i.test(sentence)) {
+    exercises.push({ type: "infinitive", question: "to do 结构在句中起什么作用？", answer: "通常作宾语、补足语、目的状语或后置修饰语，需要结合谓语判断。" });
+  }
+  return exercises;
+};
+
+const toText = (value) => {
+  if (typeof value === "string") return cleanText(value);
+  if (!value || typeof value !== "object") return "";
+  return cleanText(
+    [
+      value.text,
+      value.type ? `结构：${value.type}` : "",
+      value.subject ? `主语=${value.subject}` : "",
+      value.predicate ? `谓语=${value.predicate}` : "",
+      value.object ? `宾语/补足语=${value.object}` : "",
+      value.adverbial ? `状语/从句=${value.adverbial}` : "",
+    ]
+      .filter(Boolean)
+      .join("；"),
+  );
+};
+
+const normalizeExercises = (items, fallback) => {
+  const exercises = Array.isArray(items)
+    ? items
+        .map((item) => ({
+          type: cleanText(item?.type || "practice"),
+          question: cleanText(item?.question || ""),
+          answer: cleanText(item?.answer || ""),
+        }))
+        .filter((item) => item.question && item.answer)
+    : [];
+  return exercises.length ? exercises.slice(0, 6) : fallback.exercises;
+};
+
+const normalizeAnalysis = (generated, fallback, sentence) => {
+  if (!generated || typeof generated !== "object") return fallback;
+  const mainStructure = generated.mainStructure && typeof generated.mainStructure === "object" ? generated.mainStructure : {};
+  const subject = cleanText(mainStructure.subject);
+  const predicate = cleanText(mainStructure.predicate);
+  const object = cleanText(mainStructure.object || mainStructure.complement);
+
+  if (!subject || !predicate) return fallback;
+
+  const clauses = Array.isArray(generated.clauses)
+    ? generated.clauses.map(toText).filter(Boolean).slice(0, 8)
+    : fallback.clauses;
+  const keyWords = Array.isArray(generated.keyWords)
+    ? generated.keyWords
+        .map((item) => ({
+          word: cleanText(item?.word || ""),
+          meaning: cleanText(item?.meaning || ""),
+        }))
+        .filter((item) => item.word && item.meaning)
+        .slice(0, 12)
+    : fallback.keyWords;
+  const notes = Array.isArray(generated.notes) ? generated.notes.map(toText).filter(Boolean).slice(0, 8) : fallback.notes;
+
+  return {
+    sentence: cleanText(generated.sentence || sentence),
+    translation: cleanText(generated.translation) || fallback.translation,
+    mainStructure: {
+      subject,
+      predicate,
+      object: object || "无明显宾语，可能是表语、补足语或状语",
+    },
+    clauses: clauses.length ? clauses : fallback.clauses,
+    keyWords: keyWords.length ? keyWords : fallback.keyWords,
+    notes: notes.length ? notes : fallback.notes,
+    exercises: normalizeExercises(generated.exercises, fallback),
+  };
+};
+
 const localAnalyze = (sentence) => {
   const clean = String(sentence || "").trim();
   const independentClauses = splitIndependentClauses(clean);
@@ -184,11 +320,7 @@ const localAnalyze = (sentence) => {
       "系动词 seem/look/become 后通常接表语，不应把表语误判为谓语。",
       "after/before/although/because 等引导的部分优先作为状语从句处理。",
     ],
-    exercises: [
-      { type: "main-structure", question: "这句话的第一个主干是什么？", answer: `${mainClause.subject} ${mainClause.predicate} ${mainClause.object || mainClause.complement}`.trim() },
-      { type: "translation", question: "请选择或写出这句话的中文大意。", answer: translateSentence(clean) },
-      { type: "clause", question: "after 引导的部分在句中作什么成分？", answer: clean.toLowerCase().includes(" after ") ? "时间状语从句" : "根据具体连接词判断从句功能" },
-    ],
+    exercises: exercisesFor(clean, mainClause),
   };
 };
 
@@ -205,12 +337,40 @@ export default async function handler(req, res) {
 
   try {
     const generated = await callTextModel({
-      system: "You analyze difficult English sentences for Chinese learners.",
-      user: `请分析这个英文长难句，难度 ${level}：${sentence}`,
+      system:
+        "You are a precise English grammar and translation tutor for Chinese learners. Parse the sentence literally and accurately. Identify the real main clause, predicate phrase, complements, objects, clauses, modifiers, and produce natural Chinese translation. Do not invent context. Do not use templates. Return strict JSON only.",
+      user: `Analyze this English sentence for Chinese learners and return JSON only.
+
+Sentence:
+${sentence}
+
+Level: ${level}
+
+Return exactly these keys:
+{
+  "sentence": "original sentence",
+  "translation": "natural and accurate Chinese translation",
+  "mainStructure": {
+    "subject": "main clause subject only",
+    "predicate": "complete predicate or predicate core, e.g. want to love / seemed / is",
+    "object": "object, complement, or predicative complement"
+  },
+  "clauses": ["Chinese explanation of each clause, relative clause, non-finite phrase, modifier, and its function"],
+  "keyWords": [{"word":"important word or phrase","meaning":"Chinese meaning"}],
+  "notes": ["Chinese grammar notes"],
+  "exercises": [{"type":"practice type","question":"Chinese question based on this exact sentence","answer":"correct answer"}]
+}
+
+Rules:
+- translation must be Chinese, not English.
+- Do not include predicate or adverbs in the subject.
+- Do not ask about an after-clause unless the sentence really contains "after".
+- If the sentence has a relative clause such as "that I bought yesterday", explain it as a relative clause modifying the noun.
+- For "I want to love your mother", the predicate can be "want to love" and the object can be "your mother".`,
       schemaHint:
         'Schema: {"sentence":"","translation":"","mainStructure":{"subject":"","predicate":"","object":""},"clauses":[""],"keyWords":[{"word":"","meaning":""}],"notes":[""],"exercises":[{"type":"","question":"","answer":""}]}',
     });
-    const payload = generated?.mainStructure ? generated : fallback;
+    const payload = normalizeAnalysis(generated, fallback, sentence);
     return jsonResponse(res, { analysis: payload });
   } catch (error) {
     return jsonResponse(res, { analysis: fallback, warning: error.message || "AI sentence analysis fell back to local template." });
