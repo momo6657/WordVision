@@ -30,6 +30,7 @@ export default function SpeakingPractice({ records, onSaveRecord, onSpeak }) {
       setDialogue(payload.dialogue);
       setActiveLine(payload.dialogue.lines?.[0] || null);
       setTranscript("");
+      setMessage(payload.warning || (payload.dialogue?.generatedBy === "local-backup" ? "文字 AI 暂时不稳定，已提供本地备用口语练习。" : ""));
     } catch (error) {
       setMessage(error.message || "对话生成失败");
     } finally {

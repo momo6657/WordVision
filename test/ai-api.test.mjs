@@ -155,7 +155,7 @@ test("text AI calls are de-duplicated for identical concurrent requests", async 
   }
 });
 
-test("scene and dialogue APIs do not silently return template fallback when text AI fails", async () => {
+test("scene API does not silently return template fallback when text AI fails, dialogue provides local backup", async () => {
   const oldValues = {
     AI_TEXT_PROVIDER: process.env.AI_TEXT_PROVIDER,
     AI_TEXT_MODEL: process.env.AI_TEXT_MODEL,
@@ -178,8 +178,49 @@ test("scene and dialogue APIs do not silently return template fallback when text
     const dialogue = await callHandler(dialogueHandler, { body: { scene: "买菜", turns: 4 } });
     assert.equal(scene.status, 503);
     assert.equal(scene.payload.status, "error");
-    assert.equal(dialogue.status, 503);
-    assert.equal(dialogue.payload.status, "error");
+    assert.equal(dialogue.status, 200);
+    assert.equal(dialogue.payload.dialogue.generatedBy, "local-backup");
+    assert.equal(dialogue.payload.dialogue.lines.length, 4);
+    assert.ok(!dialogue.payload.dialogue.lines.some((line) => /Could you help me with this|step by step/i.test(line.sentence)));
+  } finally {
+    globalThis.fetch = oldFetch;
+    for (const [key, value] of Object.entries(oldValues)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test("dialogue local backup supports unusual role-play scenes", async () => {
+  const oldValues = {
+    AI_TEXT_PROVIDER: process.env.AI_TEXT_PROVIDER,
+    AI_TEXT_MODEL: process.env.AI_TEXT_MODEL,
+    AI_TEXT_BASE_URL: process.env.AI_TEXT_BASE_URL,
+    AI_TEXT_API_KEY: process.env.AI_TEXT_API_KEY,
+  };
+  const oldFetch = globalThis.fetch;
+  let calls = 0;
+  process.env.AI_TEXT_PROVIDER = "custom";
+  process.env.AI_TEXT_MODEL = "deepseek-v4-flash-search";
+  process.env.AI_TEXT_BASE_URL = "https://dicksuck.aliyahzombie.top/v1";
+  process.env.AI_TEXT_API_KEY = "test-key";
+  globalThis.fetch = async () => {
+    calls += 1;
+    return (
+    new Response(JSON.stringify({ choices: [{ message: { content: '{"lines":[]}' } }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })
+    );
+  };
+
+  try {
+    const result = await callHandler(dialogueHandler, { body: { scene: "蝙蝠侠大战超人", turns: 6 } });
+    assert.equal(result.status, 200);
+    assert.equal(result.payload.dialogue.generatedBy, "local-backup");
+    assert.equal(result.payload.dialogue.lines.length, 6);
+    assert.ok(result.payload.dialogue.lines.some((line) => line.sentence.includes("Batman") || line.sentence.includes("Superman")));
+    assert.equal(calls, 0);
   } finally {
     globalThis.fetch = oldFetch;
     for (const [key, value] of Object.entries(oldValues)) {
