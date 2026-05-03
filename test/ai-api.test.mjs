@@ -95,8 +95,8 @@ test("text AI config is separate from image generation config", () => {
   try {
     const config = getTextConfig();
     assert.equal(config.provider, "custom");
-    assert.equal(config.model, "gpt-oss-120b");
-    assert.equal(config.baseUrl, "https://api.vip.crond.dev/v1");
+    assert.equal(config.model, "deepseek-v4-flash-search");
+    assert.equal(config.baseUrl, "https://dicksuck.aliyahzombie.top/v1");
     assert.equal(config.apiKey, "");
   } finally {
     for (const [key, value] of Object.entries(oldValues)) {
@@ -123,15 +123,15 @@ test("text AI calls are de-duplicated for identical concurrent requests", async 
   const oldFetch = globalThis.fetch;
   let calls = 0;
   process.env.AI_TEXT_PROVIDER = "custom";
-  process.env.AI_TEXT_MODEL = "gpt-oss-120b";
-  process.env.AI_TEXT_BASE_URL = "https://api.vip.crond.dev";
+  process.env.AI_TEXT_MODEL = "deepseek-v4-flash-search";
+  process.env.AI_TEXT_BASE_URL = "https://dicksuck.aliyahzombie.top";
   process.env.AI_TEXT_API_KEY = "test-key";
   process.env.AI_TEXT_RESPONSE_FORMAT = "none";
   globalThis.fetch = async (url, init) => {
     calls += 1;
-    assert.equal(url, "https://api.vip.crond.dev/v1/chat/completions");
+    assert.equal(url, "https://dicksuck.aliyahzombie.top/v1/chat/completions");
     const body = JSON.parse(init.body);
-    assert.equal(body.model, "gpt-oss-120b");
+    assert.equal(body.model, "deepseek-v4-flash-search");
     return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }] }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -164,8 +164,8 @@ test("scene and dialogue APIs do not silently return template fallback when text
   };
   const oldFetch = globalThis.fetch;
   process.env.AI_TEXT_PROVIDER = "custom";
-  process.env.AI_TEXT_MODEL = "gpt-oss-120b";
-  process.env.AI_TEXT_BASE_URL = "https://api.vip.crond.dev";
+  process.env.AI_TEXT_MODEL = "deepseek-v4-flash-search";
+  process.env.AI_TEXT_BASE_URL = "https://dicksuck.aliyahzombie.top/v1";
   process.env.AI_TEXT_API_KEY = "test-key";
   globalThis.fetch = async () =>
     new Response(JSON.stringify({ error: { message: "Text model provider unavailable" } }), {

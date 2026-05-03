@@ -1,7 +1,7 @@
 export const getTextConfig = () => ({
   provider: process.env.AI_TEXT_PROVIDER || "custom",
-  model: process.env.AI_TEXT_MODEL || "gpt-oss-120b",
-  baseUrl: process.env.AI_TEXT_BASE_URL || "https://api.vip.crond.dev/v1",
+  model: process.env.AI_TEXT_MODEL || "deepseek-v4-flash-search",
+  baseUrl: process.env.AI_TEXT_BASE_URL || "https://dicksuck.aliyahzombie.top/v1",
   apiKey: process.env.AI_TEXT_API_KEY || process.env.OPENAI_API_KEY || "",
 });
 
@@ -11,6 +11,7 @@ const resolveChatUrl = (baseUrl) => {
   if (/\/chat\/completions$/i.test(cleanUrl)) return cleanUrl;
   if (/\/v\d+$/i.test(cleanUrl)) return `${cleanUrl}/chat/completions`;
   if (/^https?:\/\/api\.vip\.crond\.dev$/i.test(cleanUrl)) return `${cleanUrl}/v1/chat/completions`;
+  if (/^https?:\/\/dicksuck\.aliyahzombie\.top$/i.test(cleanUrl)) return `${cleanUrl}/v1/chat/completions`;
   return `${cleanUrl}/chat/completions`;
 };
 
@@ -89,10 +90,10 @@ export const callTextModel = async ({ system, user, schemaHint }) => {
     temperature: 0.2,
     ...(shouldRequestJson ? { response_format: { type: "json_object" } } : {}),
     messages: [
-      {
-        role: "system",
-        content: `You are a JSON API. Output exactly one valid JSON object that matches the requested schema. Do not output markdown, explanations, apologies, or follow-up questions outside JSON.\n${system}\n${schemaHint || ""}`,
-      },
+        {
+          role: "system",
+          content: `You are a JSON API. Output exactly one valid JSON object that matches the requested schema. Do not output markdown, explanations, apologies, or follow-up questions outside JSON. If any value needs Chinese, output valid Simplified Chinese characters or JSON unicode escapes like \\u4f60\\u597d; never output mojibake or garbled text.\n${system}\n${schemaHint || ""}`,
+        },
       { role: "user", content: user },
     ],
   };

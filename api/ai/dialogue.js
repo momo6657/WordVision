@@ -29,7 +29,10 @@ const normalizeDialogue = (generated, { scene, role, count }) => {
     scene: cleanText(generated.scene || scene, 120),
     lines: lines.slice(0, count),
     keyExpressions: Array.isArray(generated.keyExpressions)
-      ? generated.keyExpressions.map((item) => cleanText(item, 120)).filter(Boolean).slice(0, 8)
+      ? generated.keyExpressions
+          .map((item) => cleanText(typeof item === "string" ? item : item?.expression || item?.phrase || item?.sentence || "", 120))
+          .filter(Boolean)
+          .slice(0, 8)
       : [],
   };
 };
@@ -48,7 +51,7 @@ export default async function handler(req, res) {
     const generated = await callTextModel({
       system:
         "You are a practical spoken English dialogue generator for Chinese learners. Generate realistic, non-repetitive, task-specific dialogues. Return strict JSON only.",
-      user: `Generate a realistic spoken English dialogue for this exact scene: ${scene}
+      user: `Generate exactly ${count} realistic spoken English dialogue lines for this exact scene: ${scene}
 
 Learner role: ${role}
 Difficulty: ${level}
@@ -60,6 +63,8 @@ Requirements:
 - Every line must have natural English sentence, accurate Chinese translation, and a speaking focus.
 - Lines must not repeat.
 - Do not mix Chinese words into English sentences unless the target scene naturally requires a proper noun.
+- Translation must be valid Simplified Chinese. You may encode Chinese as JSON unicode escapes like \\u8fd9\\u662f.
+- Do not output garbled text or mojibake.
 - Include 4-8 useful key expressions.`,
       schemaHint: 'Schema: {"title":"","scene":"","lines":[{"role":"","sentence":"","translation":"","focus":""}],"keyExpressions":[""]}',
     });
