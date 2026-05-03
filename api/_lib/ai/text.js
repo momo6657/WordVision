@@ -114,12 +114,18 @@ export const callTextModel = async ({ system, user, schemaHint }) => {
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": "WordVision/1.0 (+https://wordvision.vercel.app)",
       },
       body: JSON.stringify(requestBody),
     });
 
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload?.error?.message || payload?.message || `AI text provider failed with ${response.status}`);
+    const responseText = await response.text();
+    const payload = parseJSON(responseText) || {};
+    if (!response.ok) {
+      const detail = payload?.error?.message || payload?.message || responseText.slice(0, 240);
+      throw new Error(detail || `AI text provider failed with ${response.status}`);
+    }
     const parsed = parseJSON(payload.choices?.[0]?.message?.content);
     putCachedText(cacheKey, parsed);
     return parsed;
