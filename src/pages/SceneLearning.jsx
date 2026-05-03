@@ -28,6 +28,7 @@ export default function SceneLearning({ scenes, onSaveScene, onAddWordsToCustom 
       };
       setCurrentScene(scene);
       onSaveScene(scene);
+      generateSceneImageFor(scene, { silent: true });
     } catch (error) {
       setMessage(error.message || "情景生成失败");
     } finally {
@@ -35,28 +36,36 @@ export default function SceneLearning({ scenes, onSaveScene, onAddWordsToCustom 
     }
   };
 
-  const generateSceneImage = async () => {
-    if (!currentScene) return;
+  const generateSceneImageFor = async (scene, { silent = false, force = false } = {}) => {
+    if (!scene) return;
     setImageLoading(true);
+    if (!silent) setMessage("");
     try {
       const payload = await generateWordImage({
         bookId: "scene",
-        wordId: currentScene.id,
+        wordId: scene.id,
+        force,
         imageKind: "scene",
         wordPayload: {
-          word: currentScene.title,
-          meaning: currentScene.description,
-          imagePrompt: currentScene.scenePrompt,
+          word: scene.title,
+          meaning: scene.description,
+          imagePrompt: scene.scenePrompt,
         },
       });
-      const nextScene = { ...currentScene, imageUrl: payload.imageUrl, imageStatus: "ready", updatedAt: new Date().toISOString() };
+      const nextScene = { ...scene, imageUrl: payload.imageUrl, imageStatus: "ready", imageProvider: payload.provider, imageModel: payload.model, updatedAt: new Date().toISOString() };
       setCurrentScene(nextScene);
       onSaveScene(nextScene);
     } catch (error) {
+      setCurrentScene((value) => (value?.id === scene.id ? { ...value, imageStatus: "error", imageError: error.message || "情景图片生成失败" } : value));
       setMessage(error.message || "情景图片生成失败");
     } finally {
       setImageLoading(false);
     }
+  };
+
+  const generateSceneImage = async () => {
+    if (!currentScene) return;
+    generateSceneImageFor(currentScene, { force: true });
   };
 
   const addWords = () => {
@@ -103,7 +112,14 @@ export default function SceneLearning({ scenes, onSaveScene, onAddWordsToCustom 
             <h2 className="text-2xl font-black">{currentScene.title}</h2>
             <p className="mt-2 text-slate-600 dark:text-slate-300">{currentScene.description}</p>
             <div className="mt-5 grid aspect-[4/3] place-items-center overflow-hidden rounded-lg border border-dashed border-blue-300 bg-blue-50 text-center dark:border-blue-800 dark:bg-blue-950/30">
-              {currentScene.imageUrl ? <img className="h-full w-full object-cover" src={currentScene.imageUrl} alt={currentScene.title} /> : <p className="font-bold text-blue-700 dark:text-blue-200">情景图片待生成</p>}
+              {currentScene.imageUrl ? (
+                <img className="h-full w-full object-cover" src={currentScene.imageUrl} alt={currentScene.title} />
+              ) : (
+                <div>
+                  <p className="font-bold text-blue-700 dark:text-blue-200">{imageLoading ? "情景图片生成中..." : "情景图片待生成"}</p>
+                  {currentScene.imageError ? <p className="mt-2 px-4 text-sm text-slate-500">{currentScene.imageError}</p> : null}
+                </div>
+              )}
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
               <button className="btn-primary" disabled={imageLoading} onClick={generateSceneImage}>

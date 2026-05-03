@@ -1,6 +1,7 @@
 import { callTextModel, jsonError, jsonResponse } from "../_lib/ai/text.js";
 
 const tokenPattern = /[A-Za-z]+(?:'[A-Za-z]+)?|[,.;:!?]/g;
+const hasChinese = (value) => /[\u4e00-\u9fff]/.test(String(value || ""));
 
 const beVerbs = new Set(["am", "is", "are", "was", "were", "be", "been", "being"]);
 const linkingVerbs = new Set(["seem", "seems", "seemed", "appear", "appears", "appeared", "become", "becomes", "became", "feel", "feels", "felt", "look", "looks", "looked", "remain", "remains", "remained"]);
@@ -275,7 +276,7 @@ const normalizeAnalysis = (generated, fallback, sentence) => {
 
   return {
     sentence: cleanText(generated.sentence || sentence),
-    translation: cleanText(generated.translation) || fallback.translation,
+    translation: hasChinese(generated.translation) ? cleanText(generated.translation) : fallback.translation,
     mainStructure: {
       subject,
       predicate,
@@ -371,8 +372,11 @@ Rules:
         'Schema: {"sentence":"","translation":"","mainStructure":{"subject":"","predicate":"","object":""},"clauses":[""],"keyWords":[{"word":"","meaning":""}],"notes":[""],"exercises":[{"type":"","question":"","answer":""}]}',
     });
     const payload = normalizeAnalysis(generated, fallback, sentence);
+    if (!hasChinese(payload.translation) || /^请结合上下文翻译/.test(payload.translation)) {
+      throw new Error("文字 AI 未返回有效中文翻译。");
+    }
     return jsonResponse(res, { analysis: payload });
   } catch (error) {
-    return jsonResponse(res, { analysis: fallback, warning: error.message || "AI sentence analysis fell back to local template." });
+    return jsonError(res, 503, error.message || "长难句解析失败：文字 AI 当前不可用，请检查模型额度或稍后重试。");
   }
 }

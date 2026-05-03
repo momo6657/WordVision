@@ -1,5 +1,5 @@
 const memoryInflight = new Map();
-const CACHE_PREFIX = "wordvision-ai-cache:";
+const CACHE_PREFIX = "wordvision-ai-cache:v2:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 
 const stableStringify = (value) => {
@@ -53,7 +53,7 @@ const postJSON = async (url, body, { cache = true } = {}) => {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload.status === "error") throw new Error(payload.message || `AI 请求失败：${response.status}`);
-    if (cacheKey) writeCached(cacheKey, payload);
+    if (cacheKey && !payload.warning) writeCached(cacheKey, payload);
   return payload;
   })();
 

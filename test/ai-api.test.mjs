@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import sentenceHandler from "../api/ai/sentence.js";
+import dialogueHandler from "../api/ai/dialogue.js";
+import sceneHandler from "../api/ai/scene.js";
 import { callTextModel, getTextConfig, parseJSON } from "../api/_lib/ai/text.js";
 
 const callHandler = (handler, { method = "POST", body = {} } = {}) =>
@@ -144,6 +146,40 @@ test("text AI calls are de-duplicated for identical concurrent requests", async 
     assert.deepEqual(first, { ok: true });
     assert.deepEqual(second, { ok: true });
     assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = oldFetch;
+    for (const [key, value] of Object.entries(oldValues)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test("scene and dialogue APIs do not silently return template fallback when text AI fails", async () => {
+  const oldValues = {
+    AI_TEXT_PROVIDER: process.env.AI_TEXT_PROVIDER,
+    AI_TEXT_MODEL: process.env.AI_TEXT_MODEL,
+    AI_TEXT_BASE_URL: process.env.AI_TEXT_BASE_URL,
+    AI_TEXT_API_KEY: process.env.AI_TEXT_API_KEY,
+  };
+  const oldFetch = globalThis.fetch;
+  process.env.AI_TEXT_PROVIDER = "custom";
+  process.env.AI_TEXT_MODEL = "claude-opus-4-7-standard";
+  process.env.AI_TEXT_BASE_URL = "https://api.vip.crond.dev";
+  process.env.AI_TEXT_API_KEY = "test-key";
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ error: { message: "No available channel for model claude-opus-4-7-standard" } }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  try {
+    const scene = await callHandler(sceneHandler, { body: { scene: "餐厅点餐", wordCount: 8 } });
+    const dialogue = await callHandler(dialogueHandler, { body: { scene: "买菜", turns: 4 } });
+    assert.equal(scene.status, 503);
+    assert.equal(scene.payload.status, "error");
+    assert.equal(dialogue.status, 503);
+    assert.equal(dialogue.payload.status, "error");
   } finally {
     globalThis.fetch = oldFetch;
     for (const [key, value] of Object.entries(oldValues)) {
