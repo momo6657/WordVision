@@ -3,7 +3,7 @@ import test from "node:test";
 import sentenceHandler from "../api/ai/sentence.js";
 import dialogueHandler from "../api/ai/dialogue.js";
 import sceneHandler from "../api/ai/scene.js";
-import { callTextModel, getTextConfig, parseJSON } from "../api/_lib/ai/text.js";
+import { callTextModel, getTextConfig, parseJSON, sanitizeProviderMessage } from "../api/_lib/ai/text.js";
 
 const callHandler = (handler, { method = "POST", body = {} } = {}) =>
   new Promise((resolve) => {
@@ -112,6 +112,13 @@ test("parseJSON extracts fenced provider responses", () => {
   assert.equal(parsed.mainStructure.predicate, "is");
 });
 
+test("provider HTML errors are sanitized before reaching the UI", () => {
+  const message = sanitizeProviderMessage("<html><body><h1>404 Not Found</h1><script>alert(1)</script></body></html>", 404);
+  assert.equal(message, "文字 AI 上游接口返回 404，可能是 API Base URL 或接口路径不兼容。");
+  assert.ok(!message.includes("<html>"));
+  assert.ok(!message.includes("<script>"));
+});
+
 test("text AI calls are de-duplicated for identical concurrent requests", async () => {
   const oldValues = {
     AI_TEXT_PROVIDER: process.env.AI_TEXT_PROVIDER,
@@ -155,7 +162,7 @@ test("text AI calls are de-duplicated for identical concurrent requests", async 
   }
 });
 
-test("scene API does not silently return template fallback when text AI fails, dialogue provides local backup", async () => {
+test("scene and dialogue APIs provide explicit local backup when text AI fails", async () => {
   const oldValues = {
     AI_TEXT_PROVIDER: process.env.AI_TEXT_PROVIDER,
     AI_TEXT_MODEL: process.env.AI_TEXT_MODEL,
@@ -176,8 +183,13 @@ test("scene API does not silently return template fallback when text AI fails, d
   try {
     const scene = await callHandler(sceneHandler, { body: { scene: "餐厅点餐", wordCount: 8 } });
     const dialogue = await callHandler(dialogueHandler, { body: { scene: "买菜", turns: 4 } });
-    assert.equal(scene.status, 503);
-    assert.equal(scene.payload.status, "error");
+    assert.equal(scene.status, 200);
+    assert.equal(scene.payload.status, "ready");
+    assert.equal(scene.payload.scene.generatedBy, "local-backup");
+    assert.equal(scene.payload.scene.words.length, 8);
+    assert.ok(scene.payload.warning.includes("本地高质量备用情景"));
+    assert.ok(!scene.payload.warning.includes("<html>"));
+    assert.ok(scene.payload.scene.words.some((item) => item.word === "menu" && item.meaning === "菜单"));
     assert.equal(dialogue.status, 200);
     assert.equal(dialogue.payload.dialogue.generatedBy, "local-backup");
     assert.equal(dialogue.payload.dialogue.lines.length, 4);

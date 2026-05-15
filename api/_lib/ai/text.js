@@ -15,6 +15,34 @@ const resolveChatUrl = (baseUrl) => {
   return `${cleanUrl}/chat/completions`;
 };
 
+const unique = (items) => [...new Set(items.filter(Boolean))];
+
+const resolveChatUrls = (baseUrl) => {
+  const cleanUrl = String(baseUrl || "").trim().replace(/\/+$/, "");
+  if (!cleanUrl) return [];
+  if (/\/chat\/completions$/i.test(cleanUrl)) return [cleanUrl];
+  if (/\/v\d+$/i.test(cleanUrl)) {
+    const rootUrl = cleanUrl.replace(/\/v\d+$/i, "");
+    return unique([`${cleanUrl}/chat/completions`, `${rootUrl}/chat/completions`]);
+  }
+  if (/^https?:\/\/api\.vip\.crond\.dev$/i.test(cleanUrl)) return [`${cleanUrl}/v1/chat/completions`];
+  if (/^https?:\/\/dicksuck\.aliyahzombie\.top$/i.test(cleanUrl)) {
+    return unique([`${cleanUrl}/v1/chat/completions`, `${cleanUrl}/chat/completions`]);
+  }
+  return unique([`${cleanUrl}/chat/completions`, `${cleanUrl}/v1/chat/completions`]);
+};
+
+const looksLikeHTML = (value) => /<html[\s>]|<!doctype html|<body[\s>]|<script[\s>]/i.test(String(value || ""));
+
+export const sanitizeProviderMessage = (message, status) => {
+  const raw = String(message || "").trim();
+  if (!raw) return `文字 AI 上游接口请求失败${status ? `（HTTP ${status}）` : ""}。`;
+  if (looksLikeHTML(raw)) {
+    return `文字 AI 上游接口返回 ${status || "错误"}，可能是 API Base URL 或接口路径不兼容。`;
+  }
+  return raw.replace(/\s+/g, " ").slice(0, 240);
+};
+
 const getTextCache = () => {
   globalThis.__wordVisionTextCache ||= new Map();
   globalThis.__wordVisionTextInflight ||= new Map();
@@ -100,7 +128,7 @@ export const callTextModel = async ({ system, user, schemaHint }) => {
   const cacheKey = stableStringify({
     provider: config.provider,
     model: config.model,
-    baseUrl: resolveChatUrl(config.baseUrl),
+    baseUrl: resolveChatUrls(config.baseUrl)[0] || resolveChatUrl(config.baseUrl),
     body: requestBody,
   });
   const { cache, inflight } = getTextCache();
@@ -109,26 +137,33 @@ export const callTextModel = async ({ system, user, schemaHint }) => {
   if (inflight.has(cacheKey)) return cloneJSON(await inflight.get(cacheKey));
 
   const requestPromise = (async () => {
-    const response = await fetch(resolveChatUrl(config.baseUrl), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "User-Agent": "WordVision/1.0 (+https://wordvision.vercel.app)",
-      },
-      body: JSON.stringify(requestBody),
-    });
+    const urls = resolveChatUrls(config.baseUrl);
+    let lastError = null;
+    for (const url of urls) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "User-Agent": "WordVision/1.0 (+https://wordvision.vercel.app)",
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-    const responseText = await response.text();
-    const payload = parseJSON(responseText) || {};
-    if (!response.ok) {
-      const detail = payload?.error?.message || payload?.message || responseText.slice(0, 240);
-      throw new Error(detail || `AI text provider failed with ${response.status}`);
+      const responseText = await response.text();
+      const payload = parseJSON(responseText) || {};
+      if (!response.ok) {
+        const detail = payload?.error?.message || payload?.message || responseText;
+        lastError = new Error(sanitizeProviderMessage(detail, response.status));
+        if ([404, 405].includes(response.status) && urls.length > 1) continue;
+        throw lastError;
+      }
+      const parsed = parseJSON(payload.choices?.[0]?.message?.content);
+      putCachedText(cacheKey, parsed);
+      return parsed;
     }
-    const parsed = parseJSON(payload.choices?.[0]?.message?.content);
-    putCachedText(cacheKey, parsed);
-    return parsed;
+    throw lastError || new Error("文字 AI 上游接口请求失败。");
   })();
 
   inflight.set(cacheKey, requestPromise);

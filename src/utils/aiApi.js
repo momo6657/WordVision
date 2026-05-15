@@ -38,6 +38,14 @@ const writeCached = (key, payload) => {
   }
 };
 
+const cleanErrorMessage = (value, status) => {
+  const raw = String(value || "").trim();
+  if (/<html[\s>]|<!doctype html|<script[\s>]|<body[\s>]/i.test(raw)) {
+    return `AI 服务接口返回 ${status || "错误"}，请检查服务端 API 配置。`;
+  }
+  return raw.replace(/\s+/g, " ").slice(0, 180) || `AI 请求失败：${status}`;
+};
+
 const postJSON = async (url, body, { cache = true } = {}) => {
   const cacheKey = cache ? cacheKeyFor(url, body) : "";
   const cached = cacheKey ? readCached(cacheKey) : null;
@@ -51,8 +59,14 @@ const postJSON = async (url, body, { cache = true } = {}) => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload.status === "error") throw new Error(payload.message || `AI 请求失败：${response.status}`);
+  const responseText = await response.text();
+  let payload = {};
+  try {
+    payload = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    payload = {};
+  }
+  if (!response.ok || payload.status === "error") throw new Error(cleanErrorMessage(payload.message || responseText, response.status));
     if (cacheKey && !payload.warning) writeCached(cacheKey, payload);
   return payload;
   })();
