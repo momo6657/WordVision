@@ -11,6 +11,7 @@ export const getImageConfig = () => {
     outputFormat: process.env.AI_IMAGE_OUTPUT_FORMAT || "png",
     style: process.env.AI_IMAGE_STYLE || "realistic",
     cacheStrategy: process.env.AI_IMAGE_CACHE_STRATEGY || "fast-url",
+    fallbackModels: process.env.AI_IMAGE_FALLBACK_MODELS || "gpt-image-2-chat",
     dailyLimit: Number(process.env.AI_IMAGE_DAILY_LIMIT || 120),
   };
 };

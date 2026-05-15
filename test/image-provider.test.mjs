@@ -25,6 +25,7 @@ test("image config defaults to the custom crond image generation provider", () =
   assert.equal(config.responseFormat, "url");
   assert.equal(config.outputFormat, "png");
   assert.equal(config.cacheStrategy, "fast-url");
+  assert.equal(config.fallbackModels, "gpt-image-2-chat");
 
   if (oldProvider) process.env.AI_IMAGE_PROVIDER = oldProvider;
   if (oldModel) process.env.AI_IMAGE_MODEL = oldModel;
@@ -32,6 +33,78 @@ test("image config defaults to the custom crond image generation provider", () =
   if (oldResponseFormat) process.env.AI_IMAGE_RESPONSE_FORMAT = oldResponseFormat;
   if (oldFormat) process.env.AI_IMAGE_OUTPUT_FORMAT = oldFormat;
   if (oldCacheStrategy) process.env.AI_IMAGE_CACHE_STRATEGY = oldCacheStrategy;
+});
+
+test("custom crond provider retries the chat image model when codex is unavailable", async () => {
+  const oldFetch = globalThis.fetch;
+  const requestedModels = [];
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    requestedModels.push(body.model);
+    if (body.model === "gpt-image-2-codex") {
+      return new Response(JSON.stringify({ error: { message: "no available upstream (all cooled or none)" } }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ data: [{ url: "https://cdn.example.com/scene.png" }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    const result = await generateCustomImage({
+      prompt: "A realistic western restaurant scene.",
+      config: {
+        baseUrl: "https://api.vip.crond.dev/v1",
+        apiKey: "test-key",
+        model: "gpt-image-2-codex",
+        fallbackModels: "gpt-image-2-chat",
+        size: "1024x1024",
+        quality: "low",
+        responseFormat: "url",
+        outputFormat: "png",
+      },
+    });
+
+    assert.deepEqual(requestedModels, ["gpt-image-2-codex", "gpt-image-2-chat"]);
+    assert.equal(result.model, "gpt-image-2-chat");
+    assert.equal(result.imageUrl, "https://cdn.example.com/scene.png");
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("custom crond provider returns a readable error when all image models are unavailable", async () => {
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ error: { message: "no available upstream (all cooled or none)" } }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  try {
+    await assert.rejects(
+      () =>
+        generateCustomImage({
+          prompt: "A realistic western restaurant scene.",
+          config: {
+            baseUrl: "https://api.vip.crond.dev/v1",
+            apiKey: "test-key",
+            model: "gpt-image-2-codex",
+            fallbackModels: "gpt-image-2-chat",
+            size: "1024x1024",
+            quality: "low",
+            responseFormat: "url",
+            outputFormat: "png",
+          },
+        }),
+      /已尝试 gpt-image-2-codex、gpt-image-2-chat/,
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
 });
 
 test("mock image provider is disabled", () => {
