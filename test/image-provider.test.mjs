@@ -4,7 +4,7 @@ import { getImageConfig } from "../api/_lib/images/config.js";
 import { generateImage as generateCustomImage } from "../api/_lib/images/providers/custom.js";
 import { getProvider } from "../api/_lib/images/providers/index.js";
 
-test("image config defaults to real OpenAI image generation", () => {
+test("image config defaults to the custom crond image generation provider", () => {
   const oldProvider = process.env.AI_IMAGE_PROVIDER;
   const oldModel = process.env.AI_IMAGE_MODEL;
   const oldStyle = process.env.AI_IMAGE_STYLE;
@@ -19,8 +19,8 @@ test("image config defaults to real OpenAI image generation", () => {
   delete process.env.AI_IMAGE_CACHE_STRATEGY;
 
   const config = getImageConfig();
-  assert.equal(config.provider, "openai");
-  assert.equal(config.model, "gpt-image-1");
+  assert.equal(config.provider, "custom");
+  assert.equal(config.model, "gpt-image-2-codex");
   assert.equal(config.style, "realistic");
   assert.equal(config.responseFormat, "url");
   assert.equal(config.outputFormat, "png");
@@ -61,7 +61,7 @@ test("custom provider appends image generation endpoint for v1 base urls", async
       config: {
         baseUrl: "https://api.vip.crond.dev/v1",
         apiKey: "test-key",
-        model: "GPT-image 2",
+        model: "gpt-image-2-codex",
         size: "1024x1024",
         quality: "low",
         style: "realistic",
@@ -74,7 +74,7 @@ test("custom provider appends image generation endpoint for v1 base urls", async
     assert.equal(requestBody.response_format, "url");
     assert.equal(requestBody.output_format, "png");
     assert.equal(result.provider, "custom");
-    assert.equal(result.model, "GPT-image 2");
+    assert.equal(result.model, "gpt-image-2-codex");
   } finally {
     globalThis.fetch = oldFetch;
   }

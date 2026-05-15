@@ -18,6 +18,8 @@ export const generateImage = async ({ prompt, config }) => {
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
       "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "WordVision/1.0 (+https://wordvision.vercel.app)",
     },
     body: JSON.stringify({
       model: config.model,

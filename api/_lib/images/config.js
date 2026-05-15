@@ -1,9 +1,9 @@
 export const getImageConfig = () => {
-  const provider = process.env.AI_IMAGE_PROVIDER || "openai";
+  const provider = process.env.AI_IMAGE_PROVIDER || "custom";
   return {
     provider,
-    model: process.env.AI_IMAGE_MODEL || "gpt-image-1",
-    baseUrl: process.env.AI_IMAGE_BASE_URL || "https://api.openai.com/v1/images/generations",
+    model: process.env.AI_IMAGE_MODEL || "gpt-image-2-codex",
+    baseUrl: process.env.AI_IMAGE_BASE_URL || "https://api.vip.crond.dev/v1",
     apiKey: process.env.AI_IMAGE_API_KEY || process.env.OPENAI_API_KEY || "",
     quality: process.env.AI_IMAGE_QUALITY || "low",
     size: process.env.AI_IMAGE_SIZE || "1024x1024",
