@@ -1,7 +1,7 @@
 export const getTextConfig = () => ({
   provider: process.env.AI_TEXT_PROVIDER || "custom",
-  model: process.env.AI_TEXT_MODEL || "deepseek-v4-flash-search",
-  baseUrl: process.env.AI_TEXT_BASE_URL || "https://dicksuck.aliyahzombie.top/v1",
+  model: process.env.AI_TEXT_MODEL || "mimo-v2.5",
+  baseUrl: process.env.AI_TEXT_BASE_URL || "https://token-plan-cn.xiaomimimo.com/v1",
   apiKey: process.env.AI_TEXT_API_KEY || process.env.OPENAI_API_KEY || "",
 });
 
@@ -12,6 +12,7 @@ const resolveChatUrl = (baseUrl) => {
   if (/\/v\d+$/i.test(cleanUrl)) return `${cleanUrl}/chat/completions`;
   if (/^https?:\/\/api\.vip\.crond\.dev$/i.test(cleanUrl)) return `${cleanUrl}/v1/chat/completions`;
   if (/^https?:\/\/dicksuck\.aliyahzombie\.top$/i.test(cleanUrl)) return `${cleanUrl}/v1/chat/completions`;
+  if (/^https?:\/\/token-plan-cn\.xiaomimimo\.com$/i.test(cleanUrl)) return `${cleanUrl}/v1/chat/completions`;
   return `${cleanUrl}/chat/completions`;
 };
 
@@ -27,6 +28,9 @@ const resolveChatUrls = (baseUrl) => {
   }
   if (/^https?:\/\/api\.vip\.crond\.dev$/i.test(cleanUrl)) return [`${cleanUrl}/v1/chat/completions`];
   if (/^https?:\/\/dicksuck\.aliyahzombie\.top$/i.test(cleanUrl)) {
+    return unique([`${cleanUrl}/v1/chat/completions`, `${cleanUrl}/chat/completions`]);
+  }
+  if (/^https?:\/\/token-plan-cn\.xiaomimimo\.com$/i.test(cleanUrl)) {
     return unique([`${cleanUrl}/v1/chat/completions`, `${cleanUrl}/chat/completions`]);
   }
   return unique([`${cleanUrl}/chat/completions`, `${cleanUrl}/v1/chat/completions`]);
