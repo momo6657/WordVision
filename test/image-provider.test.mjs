@@ -11,21 +11,24 @@ test("image config defaults to the custom crond image generation provider", () =
   const oldResponseFormat = process.env.AI_IMAGE_RESPONSE_FORMAT;
   const oldFormat = process.env.AI_IMAGE_OUTPUT_FORMAT;
   const oldCacheStrategy = process.env.AI_IMAGE_CACHE_STRATEGY;
+  const oldFallbackModels = process.env.AI_IMAGE_FALLBACK_MODELS;
   delete process.env.AI_IMAGE_PROVIDER;
   delete process.env.AI_IMAGE_MODEL;
   delete process.env.AI_IMAGE_STYLE;
   delete process.env.AI_IMAGE_RESPONSE_FORMAT;
   delete process.env.AI_IMAGE_OUTPUT_FORMAT;
   delete process.env.AI_IMAGE_CACHE_STRATEGY;
+  delete process.env.AI_IMAGE_FALLBACK_MODELS;
 
   const config = getImageConfig();
   assert.equal(config.provider, "custom");
   assert.equal(config.model, "grok-4.2-image");
+  assert.equal(config.baseUrl, "https://api.vip.crond.dev");
   assert.equal(config.style, "realistic");
   assert.equal(config.responseFormat, "url");
   assert.equal(config.outputFormat, "png");
   assert.equal(config.cacheStrategy, "fast-url");
-  assert.equal(config.fallbackModels, "gpt-image-2-codex,gpt-image-2-chat");
+  assert.equal(config.fallbackModels, "");
 
   if (oldProvider) process.env.AI_IMAGE_PROVIDER = oldProvider;
   if (oldModel) process.env.AI_IMAGE_MODEL = oldModel;
@@ -33,20 +36,15 @@ test("image config defaults to the custom crond image generation provider", () =
   if (oldResponseFormat) process.env.AI_IMAGE_RESPONSE_FORMAT = oldResponseFormat;
   if (oldFormat) process.env.AI_IMAGE_OUTPUT_FORMAT = oldFormat;
   if (oldCacheStrategy) process.env.AI_IMAGE_CACHE_STRATEGY = oldCacheStrategy;
+  if (oldFallbackModels) process.env.AI_IMAGE_FALLBACK_MODELS = oldFallbackModels;
 });
 
-test("custom crond provider retries the chat image model when codex is unavailable", async () => {
+test("custom crond provider uses only the configured image model when no fallback is set", async () => {
   const oldFetch = globalThis.fetch;
   const requestedModels = [];
   globalThis.fetch = async (url, init) => {
     const body = JSON.parse(init.body);
     requestedModels.push(body.model);
-    if (body.model === "gpt-image-2-codex") {
-      return new Response(JSON.stringify({ error: { message: "no available upstream (all cooled or none)" } }), {
-        status: 503,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
     return new Response(JSON.stringify({ data: [{ url: "https://cdn.example.com/scene.png" }] }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -59,8 +57,8 @@ test("custom crond provider retries the chat image model when codex is unavailab
       config: {
         baseUrl: "https://api.vip.crond.dev/v1",
         apiKey: "test-key",
-        model: "gpt-image-2-codex",
-        fallbackModels: "gpt-image-2-chat",
+        model: "grok-4.2-image",
+        fallbackModels: "",
         size: "1024x1024",
         quality: "low",
         responseFormat: "url",
@@ -68,19 +66,19 @@ test("custom crond provider retries the chat image model when codex is unavailab
       },
     });
 
-    assert.deepEqual(requestedModels, ["gpt-image-2-codex", "gpt-image-2-chat"]);
-    assert.equal(result.model, "gpt-image-2-chat");
+    assert.deepEqual(requestedModels, ["grok-4.2-image"]);
+    assert.equal(result.model, "grok-4.2-image");
     assert.equal(result.imageUrl, "https://cdn.example.com/scene.png");
   } finally {
     globalThis.fetch = oldFetch;
   }
 });
 
-test("custom crond provider returns a readable error when all image models are unavailable", async () => {
+test("custom crond provider returns a readable error for the single configured model", async () => {
   const oldFetch = globalThis.fetch;
   globalThis.fetch = async () =>
-    new Response(JSON.stringify({ error: { message: "no available upstream (all cooled or none)" } }), {
-      status: 503,
+    new Response(JSON.stringify({ error: { message: "网络出现异常，请重新进行操作" } }), {
+      status: 403,
       headers: { "Content-Type": "application/json" },
     });
 
@@ -92,15 +90,15 @@ test("custom crond provider returns a readable error when all image models are u
           config: {
             baseUrl: "https://api.vip.crond.dev/v1",
             apiKey: "test-key",
-            model: "gpt-image-2-codex",
-            fallbackModels: "gpt-image-2-chat",
+            model: "grok-4.2-image",
+            fallbackModels: "",
             size: "1024x1024",
             quality: "low",
             responseFormat: "url",
             outputFormat: "png",
           },
         }),
-      /已尝试 gpt-image-2-codex、gpt-image-2-chat/,
+      /已尝试 grok-4\.2-image/,
     );
   } finally {
     globalThis.fetch = oldFetch;
@@ -134,7 +132,7 @@ test("custom provider appends image generation endpoint for v1 base urls", async
       config: {
         baseUrl: "https://api.vip.crond.dev/v1",
         apiKey: "test-key",
-        model: "gpt-image-2-codex",
+        model: "grok-4.2-image",
         size: "1024x1024",
         quality: "low",
         style: "realistic",
@@ -147,7 +145,38 @@ test("custom provider appends image generation endpoint for v1 base urls", async
     assert.equal(requestBody.response_format, "url");
     assert.equal(requestBody.output_format, "png");
     assert.equal(result.provider, "custom");
-    assert.equal(result.model, "gpt-image-2-codex");
+    assert.equal(result.model, "grok-4.2-image");
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("custom provider resolves crond root to the v1 image generation endpoint", async () => {
+  const oldFetch = globalThis.fetch;
+  let requestedUrl = "";
+  globalThis.fetch = async (url) => {
+    requestedUrl = url;
+    return new Response(JSON.stringify({ data: [{ url: "https://cdn.example.com/grok.png" }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    await generateCustomImage({
+      prompt: "A realistic photo of a western restaurant.",
+      config: {
+        baseUrl: "https://api.vip.crond.dev",
+        apiKey: "test-key",
+        model: "grok-4.2-image",
+        size: "1024x1024",
+        quality: "low",
+        responseFormat: "url",
+        outputFormat: "png",
+      },
+    });
+
+    assert.equal(requestedUrl, "https://api.vip.crond.dev/v1/images/generations");
   } finally {
     globalThis.fetch = oldFetch;
   }

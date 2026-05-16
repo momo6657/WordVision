@@ -2,6 +2,9 @@ const resolveGenerationUrl = (baseUrl) => {
   const cleanUrl = String(baseUrl || "").trim().replace(/\/+$/, "");
   if (!cleanUrl) return "";
   if (/\/images\/generations$/i.test(cleanUrl)) return cleanUrl;
+  if (!/\/v\d+$/i.test(cleanUrl) && /^https?:\/\/api\.vip\.crond\.dev$/i.test(cleanUrl)) {
+    return `${cleanUrl}/v1/images/generations`;
+  }
   if (!/\/v\d+$/i.test(cleanUrl) && /^https?:\/\/(www\.)?uocode\.com$/i.test(cleanUrl)) {
     return `${cleanUrl}/v1/images/generations`;
   }
@@ -15,10 +18,7 @@ const getFallbackModels = (config) => {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-  const crondFallbacks = /api\.vip\.crond\.dev/i.test(config.baseUrl || "")
-    ? ["gpt-image-2-codex", "gpt-image-2-chat"]
-    : [];
-  return unique([config.model, ...configured, ...crondFallbacks]);
+  return unique([config.model, ...configured]);
 };
 
 const providerMessage = (payload, status, model) => {
