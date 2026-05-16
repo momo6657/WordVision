@@ -20,12 +20,12 @@ test("image config defaults to the custom crond image generation provider", () =
 
   const config = getImageConfig();
   assert.equal(config.provider, "custom");
-  assert.equal(config.model, "gpt-image-2-codex");
+  assert.equal(config.model, "grok-4.2-image");
   assert.equal(config.style, "realistic");
   assert.equal(config.responseFormat, "url");
   assert.equal(config.outputFormat, "png");
   assert.equal(config.cacheStrategy, "fast-url");
-  assert.equal(config.fallbackModels, "gpt-image-2-chat");
+  assert.equal(config.fallbackModels, "gpt-image-2-codex,gpt-image-2-chat");
 
   if (oldProvider) process.env.AI_IMAGE_PROVIDER = oldProvider;
   if (oldModel) process.env.AI_IMAGE_MODEL = oldModel;

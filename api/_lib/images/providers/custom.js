@@ -26,6 +26,9 @@ const providerMessage = (payload, status, model) => {
   if (/no available upstream|all cooled/i.test(message)) {
     return `图片供应商当前没有可用上游通道，模型 ${model} 暂时不可用。`;
   }
+  if (/网络出现异常|network/i.test(message)) {
+    return `图片供应商网络异常，模型 ${model} 暂时不可用。`;
+  }
   return String(message || "").replace(/\s+/g, " ").slice(0, 240);
 };
 
@@ -80,7 +83,7 @@ export const generateImage = async ({ prompt, config }) => {
 
   if (!payload) {
     const error = new Error(
-      `情景图片生成失败：图片供应商当前没有可用上游通道。已尝试 ${models.join("、")}，请稍后重试或更换可用生图渠道。`,
+      `情景图片生成失败：图片供应商当前不可用或没有可用上游通道。已尝试 ${models.join("、")}，请稍后重试或更换可用生图渠道。`,
     );
     error.statusCode = errors.find((item) => item.statusCode)?.statusCode || 503;
     error.triedModels = models;
