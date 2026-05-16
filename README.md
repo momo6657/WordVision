@@ -56,6 +56,26 @@ https://wordvision.vercel.app
 
 - Node.js 18 或更高版本。
 - npm、pnpm 或 yarn 任一包管理器。
+- Git，用于从 GitHub 拉取完整项目。
+
+### 从 GitHub 恢复项目
+
+即使本地目录被完全删除，也可以用以下步骤重新获得完整源码并启动项目：
+
+```bash
+git clone https://github.com/momo6657/WordVision.git
+cd WordVision
+npm install
+npm run dev
+```
+
+如需本地调试 AI 接口，可复制示例环境变量：
+
+```bash
+cp .env.example .env.local
+```
+
+然后在 `.env.local` 中填写自己的服务端密钥。真实 `.env.local` 不应提交到 GitHub。
 
 ### 本地启动
 
@@ -78,6 +98,17 @@ http://localhost:5173
 npm run build
 ```
 
+构建产物输出到 `dist/`，它是可再生成文件，不需要提交到 GitHub。
+
+### 部署到 Vercel
+
+1. 在 Vercel 中导入 GitHub 仓库 `momo6657/WordVision`。
+2. Framework Preset 选择 `Vite`，Build Command 使用 `npm run build`，Output Directory 使用 `dist`。
+3. 在 Vercel Project Settings -> Environment Variables 中按 `.env.example` 配置 AI 与 Blob 相关变量。
+4. 部署后，Vercel 会同时发布前端页面和 `api/` 下的 Serverless Functions。
+
+最小可运行部署只需要 GitHub 源码和 `npm install && npm run build`。没有 AI Key 时，文本接口会使用本地模板兜底；图片接口会提示需要配置真实图片 API。
+
 ### 重新导入完整词库
 
 ```bash
@@ -96,15 +127,6 @@ npm test
 
 ```bash
 npm run preview
-```
-
-如果仓库尚未初始化 Vite 项目，可使用以下方式创建基础工程后再迁移现有 `src` 目录：
-
-```bash
-npm create vite@latest . -- --template react
-npm install
-npm install -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
 ```
 
 ## AI 在项目中的作用
@@ -133,20 +155,22 @@ Content-Type: application/json
 }
 ```
 
-服务端按环境变量选择 provider。当前版本不再提供任何代码绘制的 mock 图片，也不会生成 SVG 占位图；学习页只接受真实图片 API 返回的 PNG/JPG/WebP 位图。默认 provider 为 OpenAI；如果后期更换更经济的模型，只需要增加或调整 `api/_lib/images/providers/` 下的 adapter，并修改环境变量，不需要改学习页。
+服务端按环境变量选择 provider。当前版本不再提供任何代码绘制的 mock 图片，也不会生成 SVG 占位图；学习页只接受真实图片 API 返回的 PNG/JPG/WebP 位图。默认 provider 为 `custom`，用于接入 OpenAI 兼容图片服务；如果直接使用 OpenAI，可把 `AI_IMAGE_PROVIDER` 改为 `openai`。后期更换更经济的模型时，只需要增加或调整 `api/_lib/images/providers/` 下的 adapter，并修改环境变量，不需要改学习页。
 
 关键环境变量：
 
 ```text
 AI_IMAGE_PROVIDER=openai | custom
-AI_IMAGE_MODEL=gpt-image-1
-AI_IMAGE_BASE_URL=https://api.openai.com/v1/images/generations
+AI_IMAGE_MODEL=grok-4.2-image
+AI_IMAGE_BASE_URL=https://api.vip.crond.dev
 AI_IMAGE_API_KEY=你的服务端密钥
 AI_IMAGE_QUALITY=low
 AI_IMAGE_SIZE=1024x1024
 AI_IMAGE_RESPONSE_FORMAT=url
 AI_IMAGE_OUTPUT_FORMAT=png
 AI_IMAGE_STYLE=realistic | anime
+AI_IMAGE_CACHE_STRATEGY=fast-url
+AI_IMAGE_FALLBACK_MODELS=可选，逗号分隔备用模型
 AI_IMAGE_DAILY_LIMIT=120
 BLOB_READ_WRITE_TOKEN=Vercel Blob 写入令牌
 ```
@@ -175,9 +199,10 @@ POST /api/ai/sentence
 
 ```text
 AI_TEXT_PROVIDER=openai | custom | local
-AI_TEXT_MODEL=gpt-4o-mini
-AI_TEXT_BASE_URL=https://api.openai.com/v1
+AI_TEXT_MODEL=mimo-v2.5
+AI_TEXT_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
 AI_TEXT_API_KEY=你的服务端密钥
+AI_TEXT_RESPONSE_FORMAT=json_object
 ```
 
 如果没有配置文本模型 Key，接口会使用本地模板兜底，保证页面可演示、可保存、可继续学习。
@@ -201,6 +226,9 @@ ECDICT 是 MIT License 的公开英汉词典数据库。本项目使用其考试
 
 ```text
 WordVision/
+├─ .env.example
+├─ .gitignore
+├─ CLAUDE.md
 ├─ README.md
 ├─ DEVELOPMENT_PLAN.md
 ├─ package-lock.json
@@ -210,8 +238,21 @@ WordVision/
 ├─ postcss.config.js
 ├─ index.html
 ├─ api/
-│  └─ images/
-│     └─ generate.js
+│  ├─ ai/
+│  │  ├─ dialogue.js
+│  │  ├─ scene.js
+│  │  └─ sentence.js
+│  ├─ images/
+│  │  └─ generate.js
+│  └─ _lib/
+│     ├─ ai/
+│     │  └─ text.js
+│     └─ images/
+│        ├─ config.js
+│        └─ providers/
+│           ├─ custom.js
+│           ├─ index.js
+│           └─ openai.js
 ├─ docs/
 │  ├─ CHINA_DEPLOYMENT_PLAN.md
 │  └─ VOCAB_SOURCE.md
@@ -254,9 +295,10 @@ WordVision/
    ├─ utils/
    │  ├─ aiApi.js
    │  ├─ customWords.js
-   │  ├─ storage.js
    │  ├─ db.js
-   │  └─ quiz.js
+   │  ├─ imageApi.js
+   │  ├─ quiz.js
+   │  └─ storage.js
    └─ styles/
       └─ index.css
 ```
@@ -269,8 +311,12 @@ WordVision/
 - `utils/storage.js` 封装 localStorage 读写，避免页面中散落存储逻辑。
 - `utils/db.js` 封装 IndexedDB 单词进度读写。
 - `utils/quiz.js` 封装抽题、生成四选一选项、计算正确率等学习逻辑。
+- `utils/aiApi.js` 和 `utils/imageApi.js` 封装前端到 Serverless API 的请求。
 - `api/images/generate.js` 是 Vercel Serverless 图片生成接口。
+- `api/ai/` 存放情景、对话和长难句文本生成接口。
+- `api/_lib/ai/text.js` 封装文本模型配置、JSON 解析、缓存和错误处理。
 - `api/_lib/images/providers/` 存放可替换的图片模型 provider adapter。
+- `.env.example` 记录部署所需环境变量名，不包含真实密钥。
 - 发音能力目前在 `App.jsx` 中通过浏览器 SpeechSynthesis API 封装，后续可按需要拆分到 `utils/speech.js`。
 - `styles/` 存放 Tailwind 入口样式和少量全局样式。
 
