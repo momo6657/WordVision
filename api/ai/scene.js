@@ -242,7 +242,8 @@ Image style: ${style}
 
 Requirements:
 - title and description must be Chinese and specific to the scene.
-- scenePrompt must be English and describe one realistic scene image with people, objects, and actions; no text, no labels.
+- scenePrompt must be English and describe one realistic medium-wide scene image with the actual conversation moment, people, gestures, key objects, and environment; no text, no labels.
+- scenePrompt should visually connect to the generated words and examples. For restaurant scenes, include a seated customer, waiter, menu, dishes, and bill/payment context in one complete frame.
 - Generate ${count} useful English words or short phrases that are genuinely used in this scene.
 - Each word must include accurate Chinese meaning, natural English example, Chinese example translation, and memoryTip in Chinese.
 - Do not output placeholders like "word 的场景含义" or "I use word in the scene".

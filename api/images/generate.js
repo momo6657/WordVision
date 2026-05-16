@@ -41,7 +41,7 @@ const wordFromPayload = (bookId, wordId, payload = {}) => {
     simpleMeaning: cleanText(payload.simpleMeaning || meaning, 120),
     definition: cleanText(payload.definition, 360),
     example: cleanText(payload.example, 360),
-    imagePrompt: cleanText(payload.imagePrompt || payload.scenePrompt, 800),
+    imagePrompt: cleanText(payload.imagePrompt || payload.scenePrompt, 1400),
     scene: cleanText(payload.scene, 240),
     source: bookId === "scene" ? "scene" : "custom",
   };
@@ -142,7 +142,9 @@ export default async function handler(req, res) {
           `Create one ${visualStyle} for an immersive English learning scene.`,
           `Scene title: ${word.word}. Scene meaning/context: ${meaning}.`,
           word.imagePrompt ? `Scene prompt: ${word.imagePrompt}.` : "",
-          "Show a clear real-world situation with objects and actions that help learners infer vocabulary from context.",
+          "Show the exact learning situation implied by the scene and vocabulary examples, including the visible conversation moment, the main participants, their gestures, and the key objects used in the dialogue.",
+          "Use a medium-wide documentary composition. Keep the whole interaction visible inside the frame: faces, hands, table or counter, menu or phone, food, bill, bags, classroom board, parcel locker, or other scene-specific objects must not be cropped out.",
+          "Prefer a 16:10 or 4:3 full-scene composition with balanced margins, not a close-up portrait, not a cropped interior detail, and not an empty background.",
           "The image must be pictorial only: no letters, no words, no captions, no labels, no watermark, no UI.",
           "Avoid vector art, flat icons, diagrams, clipart, logos, or code-generated illustration styles. Output should be a normal bitmap image.",
         ]

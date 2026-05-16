@@ -5,6 +5,21 @@ import { generateWordImage } from "../utils/imageApi.js";
 
 const presets = ["餐厅点餐", "课堂提问", "旅行问路", "天气交流", "快递柜取件", "校园生活"];
 
+const buildSceneVisualBrief = (scene) => {
+  const words = Array.isArray(scene?.words) ? scene.words.slice(0, 8) : [];
+  const interactions = words
+    .map((word) => [word.word, word.meaning, word.example].filter(Boolean).join(": "))
+    .filter(Boolean)
+    .join("; ");
+  return [
+    scene?.description,
+    interactions ? `Important visible interactions and objects: ${interactions}.` : "",
+    "Compose a medium-wide complete scene that includes the main people from the situation, their interaction, and the key objects. Keep faces, hands, table, objects, and body language fully visible inside the frame.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+};
+
 export default function SceneLearning({ scenes, onSaveScene, onAddWordsToCustom }) {
   const [sceneText, setSceneText] = useState("餐厅点餐");
   const [wordCount, setWordCount] = useState(10);
@@ -49,7 +64,7 @@ export default function SceneLearning({ scenes, onSaveScene, onAddWordsToCustom 
         wordPayload: {
           word: scene.title,
           meaning: scene.description,
-          imagePrompt: scene.scenePrompt,
+          imagePrompt: [scene.scenePrompt, buildSceneVisualBrief(scene)].filter(Boolean).join(" "),
         },
       });
       const nextScene = { ...scene, imageUrl: payload.imageUrl, imageStatus: "ready", imageProvider: payload.provider, imageModel: payload.model, updatedAt: new Date().toISOString() };
@@ -111,9 +126,9 @@ export default function SceneLearning({ scenes, onSaveScene, onAddWordsToCustom 
           <div className="panel p-5">
             <h2 className="text-2xl font-black">{currentScene.title}</h2>
             <p className="mt-2 text-slate-600 dark:text-slate-300">{currentScene.description}</p>
-            <div className="mt-5 grid aspect-[4/3] place-items-center overflow-hidden rounded-lg border border-dashed border-blue-300 bg-blue-50 text-center dark:border-blue-800 dark:bg-blue-950/30">
+            <div className="mt-5 grid aspect-[16/10] place-items-center overflow-hidden rounded-lg border border-dashed border-blue-300 bg-slate-100 text-center dark:border-blue-800 dark:bg-slate-900">
               {currentScene.imageUrl ? (
-                <img className="h-full w-full object-cover" src={currentScene.imageUrl} alt={currentScene.title} />
+                <img className="h-full w-full object-contain" src={currentScene.imageUrl} alt={currentScene.title} />
               ) : (
                 <div>
                   <p className="font-bold text-blue-700 dark:text-blue-200">{imageLoading ? "情景图片生成中..." : "情景图片待生成"}</p>
