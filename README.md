@@ -2,9 +2,35 @@
 
 WordVision 是一个基于 React + Vite + Tailwind CSS 的英语词汇学习 App。它面向希望通过视觉联想、发音、错题复盘和学习统计提升词汇记忆效率的用户，支持完整考试词库、本地学习进度、可替换 AI 图片生成接口和 Vercel Serverless 部署。
 
+## 项目亮点
+
+- 完整词库：内置高考、四级、六级、考研、雅思 5 套词库，合计 22764 个词条，并按词库拆分动态加载，降低首屏体积。
+- 学习闭环：覆盖词库选择、学习设置、四选一练习、学习总结、错题复盘、收藏和统计分析。
+- AI 增强：图片生成、情景词汇、口语对话和长难句理解均通过 Serverless API 接入，前端不暴露密钥。
+- 本地优先：学习进度、自定义词汇、自定义情景、口语记录和长难句记录保存在浏览器 IndexedDB，主题和统计元数据保存在 localStorage。
+- 可替换模型：图片和文本能力都采用 provider 配置，支持 OpenAI 或 OpenAI 兼容服务，并提供本地模板兜底。
+- 易部署：前端使用 Vite 构建，`api/` 目录可作为 Vercel Serverless Functions 一起发布。
+
 ## 项目简介
 
 WordVision 以“词库选择 -> 学习设置 -> 四选一学习 -> 总结复盘 -> 错题与统计”的学习闭环为主线，帮助用户完成一轮可追踪、可复习的词汇训练。
+
+## 快速开始
+
+```bash
+git clone https://github.com/momo6657/WordVision.git
+cd WordVision
+npm install
+npm run dev
+```
+
+默认开发地址通常为：
+
+```text
+http://localhost:5173
+```
+
+如果只想先体验核心学习流程，不配置任何 AI Key 也可以运行。文本 AI 接口会使用本地模板兜底；图片接口需要真实图片模型 Key 才能生成新图。
 
 ## 在线访问说明
 
@@ -25,6 +51,44 @@ https://wordvision.vercel.app
 - 使用 localStorage 保存主题、最近学习记录等轻量元数据。
 - 使用浏览器 Web Speech API 或本地音频资源提供单词发音能力。
 - 使用 Vercel Serverless API 生成 AI 单词/情景图片，并提供情景、对话和长难句文本生成接口，可通过 provider adapter 替换模型。
+
+## 技术栈
+
+| 模块 | 技术 |
+| --- | --- |
+| 前端框架 | React 18 |
+| 构建工具 | Vite 5 |
+| 样式 | Tailwind CSS 3 |
+| 图标 | lucide-react |
+| 本地持久化 | localStorage + IndexedDB |
+| 服务端接口 | Vercel Serverless Functions |
+| 图片缓存 | Vercel Blob，可按部署平台替换 |
+| 测试 | Node.js 内置 `node:test` |
+
+## 核心学习流程
+
+1. 进入首页，选择内置词库或自定义词库。
+2. 在词汇总览中查看掌握状态、收藏状态、错题和今日应复习数量。
+3. 在学习设置中选择练习模式、题目数量和出题顺序。
+4. 进入四选一练习，系统记录正确、错误、收藏、复习间隔和图片缓存状态。
+5. 完成一轮后进入总结页，查看正确率、新掌握词汇和错题数量。
+6. 通过错题本、收藏列表、今日应复习和统计页安排下一轮学习。
+
+## 功能矩阵
+
+| 功能 | 当前状态 | 说明 |
+| --- | --- | --- |
+| 内置考试词库 | 已完成 | 高考、四级、六级、考研、雅思 |
+| 自定义词汇 | 已完成 | 手动添加、编辑删除、CSV/TSV 批量粘贴导入 |
+| 四选一练习 | 已完成 | 支持未学、今日复习、错题、收藏、已学和全部模式 |
+| 间隔复习 | 已完成 | 根据答题结果调整 `dueAt`、`ease`、`intervalDays` |
+| 错题本 | 已完成 | 支持集中复习、移除错题和标记已掌握 |
+| 统计页 | 已完成 | 展示总词量、掌握量、正确率、错题和收藏 |
+| AI 图片 | 已完成 | 通过 `/api/images/generate` 生成并缓存图片 |
+| 情景学习 | 已完成 | 生成场景词汇，可加入自定义词库 |
+| 口语练习 | 已完成 | 浏览器朗读、语音识别或手动输入、相似度反馈 |
+| 长难句理解 | 已完成 | 翻译、主干、从句、重点词和练习题 |
+| 深色模式 | 已完成 | 明暗主题切换并持久化 |
 
 ## 功能介绍
 
@@ -129,6 +193,16 @@ npm test
 npm run preview
 ```
 
+### npm 脚本速查
+
+| 命令 | 用途 |
+| --- | --- |
+| `npm run dev` | 启动 Vite 开发服务器，并把 `/api` 代理到 `VITE_IMAGE_API_BASE_URL` |
+| `npm run build` | 构建生产版本到 `dist/` |
+| `npm run preview` | 本地预览生产构建结果 |
+| `npm run import:ecdict` | 从 ECDICT 重新生成内置词库和词库来源说明 |
+| `npm test` | 运行 Node.js 内置测试 |
+
 ## AI 在项目中的作用
 
 WordVision 的 AI 定位是“视觉词汇学习助手”，主要用于增强记忆材料和学习反馈，而不是替代用户学习过程。
@@ -207,6 +281,61 @@ AI_TEXT_RESPONSE_FORMAT=json_object
 
 如果没有配置文本模型 Key，接口会使用本地模板兜底，保证页面可演示、可保存、可继续学习。
 
+### 环境变量速查
+
+| 变量 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `VITE_IMAGE_API_BASE_URL` | 否 | `https://wordvision.vercel.app` | 本地开发和预览时 `/api` 代理目标 |
+| `AI_IMAGE_PROVIDER` | 否 | `custom` | 图片 provider，可选 `custom` 或 `openai` |
+| `AI_IMAGE_MODEL` | 否 | `grok-4.2-image` | 图片生成模型名称 |
+| `AI_IMAGE_BASE_URL` | 使用 `custom` 时建议配置 | `https://api.vip.crond.dev` | OpenAI 兼容图片接口根地址 |
+| `AI_IMAGE_API_KEY` | 生成图片时必填 | 空 | 服务端图片模型密钥 |
+| `AI_IMAGE_RESPONSE_FORMAT` | 否 | `url` | 优先使用图片 URL，也兼容 base64 返回 |
+| `AI_IMAGE_CACHE_STRATEGY` | 否 | `fast-url` | provider URL 与 Blob 缓存的处理策略 |
+| `AI_IMAGE_DAILY_LIMIT` | 否 | `120` | 图片生成日限额 |
+| `BLOB_READ_WRITE_TOKEN` | 否 | 空 | Vercel Blob 写入令牌，用于跨设备缓存 |
+| `AI_TEXT_PROVIDER` | 否 | `custom` | 文本 provider，可选 `custom`、`openai` 或 `local` |
+| `AI_TEXT_MODEL` | 否 | `mimo-v2.5` | 文本生成模型名称 |
+| `AI_TEXT_BASE_URL` | 使用 `custom` 时建议配置 | `https://token-plan-cn.xiaomimimo.com/v1` | OpenAI 兼容聊天接口根地址 |
+| `AI_TEXT_API_KEY` | 否 | 空 | 文本模型密钥；为空时使用本地模板 |
+| `OPENAI_API_KEY` | 否 | 空 | provider 专用 Key 未配置时的通用备用 Key |
+
+### Serverless API 约定
+
+| 接口 | 方法 | 用途 | 兜底策略 |
+| --- | --- | --- | --- |
+| `/api/images/generate` | `POST` | 为词汇生成图片并返回图片 URL 或 base64 派生结果 | 未配置图片 Key 时返回明确错误，不生成假图 |
+| `/api/ai/scene` | `POST` | 根据情景生成词汇组、释义和练习提示 | 文本模型不可用时使用本地情景模板 |
+| `/api/ai/dialogue` | `POST` | 根据情景生成口语对话 | 文本模型不可用时使用本地对话模板 |
+| `/api/ai/sentence` | `POST` | 分析英文长难句结构 | 文本模型不可用时使用本地规则分析 |
+
+接口返回统一倾向于结构化 JSON，前端通过 `src/utils/aiApi.js` 与 `src/utils/imageApi.js` 调用，页面层不直接拼接 provider 请求。
+
+## 数据持久化与隐私
+
+WordVision 默认不需要账号体系，学习数据优先保存在当前浏览器：
+
+- `localStorage`：保存主题、当前词库、答题总数、正确数、错误数和历史 session 元数据。
+- `IndexedDB`：保存单词级进度、自定义词汇、自定义情景、口语练习记录和长难句记录。
+- `Vercel Blob`：仅在配置 `BLOB_READ_WRITE_TOKEN` 时用于服务端图片缓存，缓存 key 包含词库、单词、provider、模型、质量、尺寸和 prompt hash。
+- API Key：只读取服务端环境变量，不写入前端 bundle，也不应提交到 GitHub。
+
+如果清除浏览器站点数据，学习进度和自定义内容会被清空；生产使用前建议后续补充导出/导入备份能力。
+
+## 测试覆盖
+
+当前测试位于 `test/`：
+
+- `test/quiz.test.mjs`：验证抽题、选项、统计和复习计划逻辑。
+- `test/image-provider.test.mjs`：验证图片 provider 配置、URL 拼接、错误信息和 mock provider 禁用。
+- `test/ai-api.test.mjs`：验证文本 API、本地兜底、JSON 解析、错误清洗和并发去重。
+
+运行：
+
+```bash
+npm test
+```
+
 ## 词库来源
 
 当前完整词库由 `scripts/import-ecdict.mjs` 从 ECDICT 导入生成：
@@ -219,6 +348,31 @@ AI_TEXT_RESPONSE_FORMAT=json_object
 - 合计：22764 词
 
 ECDICT 是 MIT License 的公开英汉词典数据库。本项目使用其考试标签 `gk/cet4/cet6` 作为公开词库基线，不宣称这些词表是官方考纲原始文件。详细导入报告见 `docs/VOCAB_SOURCE.md`。
+
+## 架构说明
+
+```mermaid
+flowchart LR
+  Browser["浏览器 React App"]
+  LocalStorage["localStorage\n主题与统计元数据"]
+  IndexedDB["IndexedDB\n单词进度与自定义内容"]
+  ViteProxy["Vite /api Proxy\n本地开发"]
+  VercelApi["Vercel Serverless API"]
+  TextProvider["文本模型 Provider"]
+  ImageProvider["图片模型 Provider"]
+  Blob["Vercel Blob\n图片缓存"]
+
+  Browser --> LocalStorage
+  Browser --> IndexedDB
+  Browser --> ViteProxy
+  ViteProxy --> VercelApi
+  Browser --> VercelApi
+  VercelApi --> TextProvider
+  VercelApi --> ImageProvider
+  VercelApi --> Blob
+```
+
+前端页面只关心统一的学习状态和 API 返回结果；模型选择、密钥读取、缓存和错误清洗都在 `api/` 层处理。这样可以在不改学习页的情况下替换图片模型、文本模型或部署平台。
 
 ## 项目文件结构
 
@@ -258,6 +412,10 @@ WordVision/
 │  └─ VOCAB_SOURCE.md
 ├─ scripts/
 │  └─ import-ecdict.mjs
+├─ test/
+│  ├─ ai-api.test.mjs
+│  ├─ image-provider.test.mjs
+│  └─ quiz.test.mjs
 └─ src/
    ├─ main.jsx
    ├─ App.jsx
@@ -316,19 +474,19 @@ WordVision/
 - `api/ai/` 存放情景、对话和长难句文本生成接口。
 - `api/_lib/ai/text.js` 封装文本模型配置、JSON 解析、缓存和错误处理。
 - `api/_lib/images/providers/` 存放可替换的图片模型 provider adapter。
+- `test/` 存放工具函数、图片 provider 和 AI API 的 Node.js 测试。
 - `.env.example` 记录部署所需环境变量名，不包含真实密钥。
 - 发音能力目前在 `App.jsx` 中通过浏览器 SpeechSynthesis API 封装，后续可按需要拆分到 `utils/speech.js`。
 - `styles/` 存放 Tailwind 入口样式和少量全局样式。
 
 ## 后续可改进方向
 
-- 自定义词库导入：支持 CSV、JSON 或手动录入词汇。
-- 数据导出与备份：允许导出 localStorage 学习数据，便于迁移设备。
-- 间隔重复算法：根据记忆曲线安排复习时间，而不是只按错题筛选。
-- 更丰富的统计图表：加入每日学习趋势、词库完成率、薄弱词性和难度分布。
-- AI 图片生成或检索：为单词提供更直观的视觉素材。
-- 多题型练习：增加拼写题、听音选词、例句填空、英英释义匹配等模式。
-- PWA 离线能力：支持安装到桌面或移动端，并在离线状态下继续学习。
-- 云端同步：在需要多设备使用时增加账号体系和远程数据同步。
-- 无障碍优化：提升键盘操作、屏幕阅读器支持和颜色对比度。
-- 测试覆盖：补充组件测试、工具函数测试和关键学习流程端到端测试。
+- 数据导出与备份：导出 IndexedDB 和 localStorage 中的学习数据，便于迁移设备或回滚。
+- 更丰富的统计图表：加入每日学习趋势、词库完成率、薄弱词性、难度分布和复习热力图。
+- 多题型练习：增加拼写题、听音选词、例句填空、英英释义匹配和听写模式。
+- PWA 离线能力：支持安装到桌面或移动端，并在离线状态下继续学习已缓存词库。
+- 云端同步：在需要多设备使用时增加账号体系、远程进度同步和冲突合并策略。
+- 国内直连部署：按 `docs/CHINA_DEPLOYMENT_PLAN.md` 迁移前端、API 和图片缓存，降低大陆网络访问不稳定问题。
+- 无障碍优化：提升键盘操作、屏幕阅读器支持、焦点状态和颜色对比度。
+- 测试覆盖：补充组件测试、浏览器端 IndexedDB 测试和关键学习流程端到端测试。
+- 成本控制：按用户、词库或日期限制 AI 图片生成额度，并提供更细的缓存清理工具。
